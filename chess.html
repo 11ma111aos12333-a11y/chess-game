@@ -588,6 +588,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .side { width: 100%; max-width: 648px; }
   .moves-panel { max-height: 240px; }
   .board-col { --bsz: clamp(255px, min(calc(100vw - 26px), calc(100svh - 330px)), 560px); width: 100%; max-width: 648px; }
+  /* مع شريط التقييم: احتساب مساحته (20px + فجوة 10px) حتى لا يفيض العرض */
+  body.eval-on .board-col { --bsz: clamp(242px, min(calc(100vw - 60px), calc(100svh - 330px)), 560px); }
 }
 @media (max-width: 560px) {
   .topbar { padding: 8px 10px; }
@@ -609,6 +611,296 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   }
 }
 
+/* ============ v2.0: ثيمات اللوح ============ */
+body[data-board="emerald"] { --sq-l: #e2eadf; --sq-d: #6f9b6f; }
+[data-theme="dark"][data-board="emerald"] { --sq-l: #b6c8b4; --sq-d: #4e7354; }
+body[data-board="royal"] { --sq-l: #dde1e8; --sq-d: #697385; }
+[data-theme="dark"][data-board="royal"] { --sq-l: #a9b0bc; --sq-d: #4b5364; }
+body[data-board="walnut"] { --sq-l: #dcc79c; --sq-d: #7e5233; }
+[data-theme="dark"][data-board="walnut"] { --sq-l: #b5a184; --sq-d: #5d4326; }
+.board-col.no-coords .coord { display: none; }
+
+/* ============ حاضنة اللوح + شريط التقييم ============ */
+.board-wrap { display: flex; gap: 10px; align-items: stretch; }
+.eval-col {
+  width: 20px; flex: none;
+  display: none;
+  flex-direction: column; gap: 6px;
+}
+.eval-col.on { display: flex; }
+.eval-bar {
+  flex: 1;
+  background: #2b2a26; /* نصيب الأسود (الأعلى) */
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex; flex-direction: column; justify-content: flex-end;
+}
+.eval-fill {
+  background: #f2efe7; /* نصيب الأبيض (من الأسفل) */
+  height: 50%;
+  transition: height .5s cubic-bezier(.25, .8, .3, 1);
+}
+.eval-tag {
+  text-align: center;
+  font-size: .62rem; font-weight: 800;
+  direction: ltr;
+  color: var(--muted);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 0;
+  min-height: 1.5em;
+}
+
+/* ============ ساعة المباراة ============ */
+.pb-clock {
+  flex: none;
+  direction: ltr;
+  font-family: Consolas, "Cascadia Mono", Menlo, monospace;
+  font-size: 1.02rem; font-weight: 800;
+  background: var(--panel-2);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 3px 10px;
+  min-width: 4.6ch;
+  text-align: center;
+  transition: border-color .2s, color .2s;
+}
+.pb-clock.active { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); }
+.pb-clock.low { border-color: var(--danger); color: var(--danger); animation: check-pulse 1s ease-in-out infinite; }
+
+/* ============ صف خيارات رباعي + أزرار الإعداد الإضافية ============ */
+.opt-row.four { grid-template-columns: repeat(4, 1fr); }
+.setup-extra { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.text-btn.big { padding: 13px 10px; font-size: 1rem; }
+
+/* ============ نافذة الإعدادات المنبثقة ============ */
+.gear-wrap { position: relative; }
+.pop {
+  position: absolute; top: calc(100% + 10px); inset-inline-start: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+  width: 250px;
+  z-index: 40;
+  text-align: start;
+  animation: pop .18s cubic-bezier(.34, 1.56, .64, 1);
+}
+.pop-title { font-size: .85rem; font-weight: 800; color: var(--muted); margin-bottom: 10px; }
+.set-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 0; font-size: .88rem; font-weight: 600;
+}
+.switch {
+  width: 44px; height: 24px; flex: none;
+  background: var(--border);
+  border: none; border-radius: 999px;
+  position: relative;
+  transition: background .18s;
+}
+.switch .knob {
+  position: absolute; top: 3px; inset-inline-start: 3px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .3);
+  transition: transform .18s;
+}
+.switch.on { background: var(--accent); }
+.switch.on .knob { transform: translateX(-20px); }
+[dir="rtl"] .switch.on .knob { transform: translateX(20px); }
+[dir="rtl"] .switch .knob { inset-inline-start: auto; inset-inline-end: 3px; }
+[dir="rtl"] .switch.on .knob { transform: translateX(-20px); }
+.set-title { font-size: .78rem; font-weight: 800; color: var(--muted); margin: 10px 0 8px; }
+.theme-swatches { display: flex; gap: 8px; }
+.swatch {
+  flex: 1; height: 40px;
+  display: grid; grid-template-columns: 1fr 1fr;
+  border: 2.5px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  padding: 0;
+  transition: border-color .15s, transform .1s;
+}
+.swatch:hover { transform: translateY(-1px); }
+.swatch.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.swatch .sw { display: block; }
+.swatch[data-board="classic"] .sw.l { background: #f0d9b5; } .swatch[data-board="classic"] .sw.d { background: #b58863; }
+.swatch[data-board="emerald"] .sw.l { background: #e2eadf; } .swatch[data-board="emerald"] .sw.d { background: #6f9b6f; }
+.swatch[data-board="royal"] .sw.l { background: #dde1e8; } .swatch[data-board="royal"] .sw.d { background: #697385; }
+.swatch[data-board="walnut"] .sw.l { background: #dcc79c; } .swatch[data-board="walnut"] .sw.d { background: #7e5233; }
+
+/* ============ رأس سجل النقلات + أزرار التنقل ============ */
+.moves-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.moves-head .panel-title { margin-bottom: 0; }
+.mv-nav { display: flex; gap: 4px; }
+.mv-nav button {
+  width: 30px; height: 26px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: .72rem;
+  transition: border-color .12s, background .12s;
+}
+.mv-nav button:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+.mv-nav button:disabled { opacity: .35; cursor: not-allowed; }
+.mv-s { cursor: pointer; border-radius: 5px; padding: 1px 4px; display: inline-flex; align-items: center; gap: 4px; }
+.mv-s:hover { background: var(--accent-soft); }
+.mv-s.viewing { background: var(--accent); color: #fff; }
+.opening-name { font-size: .78rem; font-weight: 700; color: var(--gold); margin-bottom: 6px; }
+
+/* شارات تصنيف النقلات */
+.mv-cls { font-size: .68rem; font-weight: 800; line-height: 1; border-radius: 4px; padding: 1.5px 3px; direction: ltr; }
+.mv-cls.brilliant { color: #00a6a6; }
+.mv-cls.great { color: #3d7bd6; }
+.mv-cls.best { color: #2e9e5b; }
+.mv-cls.excellent { color: #7cbf8e; }
+.mv-cls.good { color: #9aa66f; }
+.mv-cls.book { color: #a38456; }
+.mv-cls.inaccuracy { color: #d8b93a; }
+.mv-cls.mistake { color: #e08a3c; }
+.mv-cls.blunder { color: #d84c3c; }
+
+/* ============ لوحة المراجعة ============ */
+.review-panel { border-color: var(--gold); }
+.rv-accuracy { display: flex; gap: 8px; margin-bottom: 10px; }
+.rv-acc-box {
+  flex: 1; text-align: center;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 6px;
+}
+.rv-acc-box .n { font-size: 1.35rem; font-weight: 800; direction: ltr; }
+.rv-acc-box .t { font-size: .72rem; color: var(--muted); font-weight: 700; }
+.rv-graph { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--panel-2); }
+.rv-graph svg { display: block; width: 100%; height: 120px; }
+.rv-move-info { margin-top: 10px; font-size: .85rem; line-height: 1.8; min-height: 3.4em; }
+.rv-actions { display: flex; gap: 8px; margin-top: 8px; }
+.rv-actions .text-btn { flex: 1; padding: 8px 6px; font-size: .78rem; }
+.text-btn.sm { padding: 8px 10px; font-size: .8rem; }
+.text-btn.full { width: 100%; margin-top: 8px; }
+
+/* ============ طبقة الأسهم ============ */
+.arrow-layer { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 5; pointer-events: none; }
+
+/* ============ شاشة الألغاز ============ */
+.pz-col { --bsz: clamp(272px, min(calc(100vw - 446px), calc(100svh - 320px)), 620px); }
+.pz-status {
+  width: calc(var(--bsz) + 28px);
+  min-height: 44px;
+  background: var(--panel);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 6px 14px;
+  font-weight: 700; font-size: .92rem;
+  text-align: center;
+  transition: border-color .2s;
+}
+.pz-status.good { border-color: var(--accent); color: var(--accent-strong); }
+.pz-status.bad { border-color: var(--danger); color: var(--danger); }
+.pz-actions { display: flex; gap: 8px; width: calc(var(--bsz) + 28px); flex-wrap: wrap; }
+.pz-actions .text-btn { flex: 1; padding: 10px 8px; font-size: .85rem; }
+.pz-actions .primary-btn { flex: 1.4; padding: 10px 8px; font-size: .9rem; }
+.pz-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: .88rem; font-weight: 700;
+}
+.pz-chip b { direction: ltr; }
+.pz-cats { display: flex; flex-direction: column; gap: 7px; }
+.pz-cat {
+  text-align: start;
+  background: var(--panel-2);
+  border: 2px solid var(--border);
+  border-radius: 11px;
+  padding: 10px 13px;
+  font-weight: 700; font-size: .88rem;
+  transition: border-color .15s, background .15s;
+}
+.pz-cat:hover { border-color: var(--accent); }
+.pz-cat.selected { border-color: var(--accent); background: var(--accent-soft); }
+.pz-cat .cnt { float: left; color: var(--muted); font-size: .78rem; direction: ltr; }
+.pz-progress { font-size: .85rem; line-height: 2; }
+.pz-progress .bar {
+  height: 9px; border-radius: 6px; background: var(--panel-2);
+  border: 1px solid var(--border);
+  overflow: hidden; margin-top: 4px;
+}
+.pz-progress .bar > div { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-strong)); transition: width .4s; }
+.puzzle-screen .board-frame.pz-wrong { animation: pz-shake .4s; }
+@keyframes pz-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-7px); }
+  50% { transform: translateX(6px); }
+  75% { transform: translateX(-4px); }
+}
+.pz-dots .sq.dot::after { background: var(--dot); }
+
+/* ============ نافذة الإنجازات والإحصائيات ============ */
+.modal.wide { width: min(560px, 94vw); max-height: 86vh; display: flex; flex-direction: column; }
+.stats-tabs { display: flex; gap: 8px; margin: 14px 0 10px; }
+.stats-tabs .tab {
+  flex: 1; padding: 9px 10px;
+  background: var(--panel-2);
+  border: 2px solid var(--border);
+  border-radius: 11px;
+  font-weight: 800; font-size: .88rem;
+  transition: border-color .15s, background .15s;
+}
+.stats-tabs .tab.selected { border-color: var(--accent); background: var(--accent-soft); }
+.stats-body { flex: 1; overflow-y: auto; min-height: 200px; padding: 2px; }
+.ach-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ach {
+  background: var(--panel-2);
+  border: 1.5px solid var(--border);
+  border-radius: 13px;
+  padding: 10px 11px;
+  text-align: start;
+  transition: border-color .2s, opacity .2s;
+}
+.ach.unlocked { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(185, 138, 47, .18); }
+.ach.locked { opacity: .55; }
+.ach .a-ic { font-size: 1.35rem; line-height: 1.2; }
+.ach .a-t { font-weight: 800; font-size: .85rem; margin-top: 3px; }
+.ach .a-d { font-size: .72rem; color: var(--muted); line-height: 1.6; margin-top: 2px; }
+.st-row-line {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border);
+  font-size: .88rem;
+}
+.st-row-line:last-child { border-bottom: none; }
+.st-row-line .v { font-weight: 800; direction: ltr; }
+.st-sec { font-weight: 800; color: var(--muted); font-size: .8rem; margin: 12px 0 4px; }
+.st-sec:first-child { margin-top: 0; }
+
+/* استجابة إضافية */
+@media (max-width: 560px) {
+  .opt-row.four { grid-template-columns: 1fr 1fr; }
+  .setup-extra { grid-template-columns: 1fr; }
+  .ach-grid { grid-template-columns: 1fr; }
+  .pop { width: 232px; }
+  .pz-actions { gap: 6px; }
+  .pz-actions .text-btn, .pz-actions .primary-btn { padding: 9px 6px; font-size: .78rem; }
+}
+@media (max-width: 940px) {
+  .pz-col { --bsz: clamp(255px, min(calc(100vw - 26px), calc(100svh - 360px)), 560px); width: 100%; max-width: 648px; }
+  .pz-status, .pz-actions { width: 100%; max-width: 648px; }
+}
+@supports not (height: 1svh) {
+  .pz-col { --bsz: clamp(272px, min(calc(100vw - 446px), calc(100vh - 320px)), 620px); }
+  @media (max-width: 940px) {
+    .pz-col { --bsz: clamp(255px, min(calc(100vw - 26px), calc(100vh - 360px)), 560px); }
+  }
+}
+
 </style>
 </head>
 <body>
@@ -618,7 +910,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   <div class="setup-card">
     <div class="setup-logo">♞</div>
     <h1>لعبة الشطرنج</h1>
-    <p class="subtitle">شطرنج كامل بجميع القواعد الرسمية — العب مع صديق أو ضد الكمبيوتر</p>
+    <p class="subtitle">شطرنج كامل بجميع القواعد الرسمية — العب، تدرّب على الألغاز، وراجع مبارياتك</p>
 
     <div class="opt-group">
       <div class="opt-title">نمط اللعب</div>
@@ -654,8 +946,23 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       </div>
     </div>
 
+    <div class="opt-group">
+      <div class="opt-title">وقت المباراة</div>
+      <div class="opt-row four" id="time-row">
+        <button type="button" class="opt selected" data-time="none"><span class="opt-icon">∞</span><span class="opt-label">بلا مؤقت</span></button>
+        <button type="button" class="opt" data-time="180+2"><span class="opt-icon">⚡</span><span class="opt-label">بليتز 3+2</span></button>
+        <button type="button" class="opt" data-time="300+3"><span class="opt-icon">⚡</span><span class="opt-label">بليتز 5+3</span></button>
+        <button type="button" class="opt" data-time="600+0"><span class="opt-icon">⏱</span><span class="opt-label">سريع 10</span></button>
+      </div>
+    </div>
+
+    <div class="setup-extra">
+      <button id="btn-puzzles" class="text-btn big" type="button">🧩 الألغاز</button>
+      <button id="btn-stats" class="text-btn big" type="button">🏅 الإنجازات</button>
+    </div>
+
     <button id="start-btn" type="button">▶ ابدأ اللعبة</button>
-    <div class="rules-hint">تبييت · أخذ بالمرور · ترقية البيدق · كش مات · تعادلات كاملة · نظام نقاط يكافئ أداءك (أسر، كش، شوكة، تبييت، ترقية) ورسائل تشجيع للحركات المميزة</div>
+    <div class="rules-hint">تبييت · أخذ بالمرور · ترقية البيدق · كش مات · تعادلات كاملة · نظام نقاط ورسائل تشجيع · مراجعة المباراة بعد انتهائها · ألغاز تدريبية</div>
   </div>
 </div>
 
@@ -665,20 +972,44 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="brand"><span class="brand-glyph">♞</span>الشطرنج</div>
     <div class="topbar-actions">
       <button id="btn-undo" class="icon-btn" type="button" title="تراجع عن نقلة">↩</button>
+      <button id="btn-hint" class="icon-btn" type="button" title="تلميح: يرسم أفضل نقلة">💡</button>
       <button id="btn-flip" class="icon-btn" type="button" title="قلب اللوحة">⇵</button>
       <button id="btn-sound" class="icon-btn" type="button" title="الصوت">🔊</button>
       <button id="btn-theme" class="icon-btn" type="button" title="تبديل الوضع (ليلي/نهاري)">🌙</button>
+      <div class="gear-wrap">
+        <button id="btn-gear" class="icon-btn" type="button" title="الإعدادات">⚙</button>
+        <div id="settings-pop" class="pop hidden">
+          <div class="pop-title">الإعدادات</div>
+          <div class="set-row"><span>شريط التقييم الحي</span><button id="set-eval" class="switch on" type="button"><span class="knob"></span></button></div>
+          <div class="set-row"><span>نقاط النقلات القانونية</span><button id="set-dots" class="switch on" type="button"><span class="knob"></span></button></div>
+          <div class="set-row"><span>إحداثيات اللوح</span><button id="set-coords" class="switch on" type="button"><span class="knob"></span></button></div>
+          <div class="set-title">ألوان اللوح</div>
+          <div class="theme-swatches" id="board-themes">
+            <button type="button" class="swatch selected" data-board="classic" title="كلاسيكي"><span class="sw l"></span><span class="sw d"></span></button>
+            <button type="button" class="swatch" data-board="emerald" title="زمردي"><span class="sw l"></span><span class="sw d"></span></button>
+            <button type="button" class="swatch" data-board="royal" title="رمادي ملكي"><span class="sw l"></span><span class="sw d"></span></button>
+            <button type="button" class="swatch" data-board="walnut" title="خشب الجوز"><span class="sw l"></span><span class="sw d"></span></button>
+          </div>
+        </div>
+      </div>
       <button id="btn-new" class="text-btn" type="button">✚ لعبة جديدة</button>
     </div>
   </header>
   <main class="layout">
     <section class="board-col">
       <div class="player-bar" id="bar-top"></div>
-      <div class="board-frame" dir="ltr">
-        <div class="board-box">
-          <div id="board" class="board"></div>
-          <div id="pieces" class="pieces"></div>
-          <div id="toast-layer" class="toast-layer"></div>
+      <div class="board-wrap">
+        <div class="eval-col" id="eval-col" dir="ltr" title="شريط التقييم — من المتفوق الآن">
+          <div class="eval-bar" id="eval-bar"><div class="eval-fill" id="eval-fill"></div></div>
+          <div class="eval-tag" id="eval-tag">0.0</div>
+        </div>
+        <div class="board-frame" dir="ltr">
+          <div class="board-box">
+            <div id="board" class="board"></div>
+            <div id="pieces" class="pieces"></div>
+            <svg id="arrow-layer" class="arrow-layer" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+            <div id="toast-layer" class="toast-layer"></div>
+          </div>
         </div>
       </div>
       <div class="player-bar" id="bar-bottom"></div>
@@ -688,9 +1019,79 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         <div id="status-main">—</div>
         <div id="status-sub">—</div>
       </div>
+      <div class="panel review-panel hidden" id="review-panel">
+        <div class="panel-title">📊 مراجعة المباراة</div>
+        <div id="rv-accuracy" class="rv-accuracy"></div>
+        <div id="rv-graph" class="rv-graph" dir="ltr"></div>
+        <div id="rv-move-info" class="rv-move-info">—</div>
+        <div class="rv-actions">
+          <button id="rv-prev-key" class="text-btn sm" type="button">◀ مفصلية سابقة</button>
+          <button id="rv-next-key" class="text-btn sm" type="button">مفصلية تالية ▶</button>
+        </div>
+        <button id="rv-exit" class="text-btn subtle full" type="button">إنهاء المراجعة والعودة</button>
+      </div>
       <div class="panel moves-panel">
-        <div class="panel-title">سجل النقلات</div>
+        <div class="moves-head">
+          <div class="panel-title">سجل النقلات</div>
+          <div class="mv-nav" dir="ltr">
+            <button id="nav-start" type="button" title="البداية">⏮</button>
+            <button id="nav-prev" type="button" title="النقلة السابقة">◀</button>
+            <button id="nav-next" type="button" title="النقلة التالية">▶</button>
+            <button id="nav-end" type="button" title="الوضع المباشر">⏭</button>
+          </div>
+        </div>
+        <div id="opening-name" class="opening-name hidden"></div>
         <div id="moves" class="moves"></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<!-- ======= شاشة الألغاز ======= -->
+<div id="puzzle-screen" class="screen puzzle-screen hidden">
+  <header class="topbar">
+    <div class="brand"><span class="brand-glyph">🧩</span>الألغاز</div>
+    <div class="topbar-actions">
+      <span id="pz-streak" class="pz-chip" title="سلسلة الحلول الصحيحة المتتالية">🔥 <b>0</b></span>
+      <span id="pz-solved" class="pz-chip" title="إجمالي الألغاز المحلولة">✓ <b>0</b></span>
+      <button id="btn-pz-back" class="text-btn" type="button">← رجوع</button>
+    </div>
+  </header>
+  <main class="layout">
+    <section class="board-col pz-col">
+      <div class="pz-status" id="pz-status">—</div>
+      <div class="board-wrap">
+        <div class="board-frame" dir="ltr">
+          <div class="board-box">
+            <div id="pboard" class="board"></div>
+            <div id="ppieces" class="pieces"></div>
+            <svg id="parrow-layer" class="arrow-layer" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+            <div id="pt-toast-layer" class="toast-layer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="pz-actions">
+        <button id="btn-pz-hint" class="text-btn" type="button">💡 تلميح</button>
+        <button id="btn-pz-retry" class="text-btn" type="button">↻ إعادة</button>
+        <button id="btn-pz-skip" class="text-btn" type="button">⏭ تخطٍّ</button>
+        <button id="btn-pz-next" class="primary-btn" type="button">اللغز التالي ←</button>
+      </div>
+    </section>
+    <aside class="side">
+      <div class="panel">
+        <div class="panel-title">فئة الألغاز</div>
+        <div class="pz-cats" id="pz-cats">
+          <button type="button" class="pz-cat selected" data-cat="daily">📅 لغز اليوم</button>
+          <button type="button" class="pz-cat" data-cat="all">🎲 الكل</button>
+          <button type="button" class="pz-cat" data-cat="mate1">⚔ كش مات في نقلة</button>
+          <button type="button" class="pz-cat" data-cat="mate2">⚔⚔ كش مات في نقلتين</button>
+          <button type="button" class="pz-cat" data-cat="fork">🍱 شوكة</button>
+          <button type="button" class="pz-cat" data-cat="win">💰 كسب مادة</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">تقدمك في هذه الفئة</div>
+        <div id="pz-progress" class="pz-progress">—</div>
       </div>
     </aside>
   </main>
@@ -713,9 +1114,23 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div id="over-sub" class="modal-sub">—</div>
     <div id="over-scores" class="over-scores"></div>
     <div class="modal-actions">
-      <button id="over-new" class="primary-btn" type="button">✚ لعبة جديدة</button>
+      <button id="over-review" class="primary-btn" type="button">📊 مراجعة المباراة</button>
+      <button id="over-new" class="text-btn" type="button">✚ لعبة جديدة</button>
       <button id="over-close" class="text-btn subtle" type="button">عرض اللوحة</button>
     </div>
+  </div>
+</div>
+
+<!-- ======= نافذة الإنجازات والإحصائيات ======= -->
+<div id="stats-modal" class="overlay hidden">
+  <div class="modal wide">
+    <div class="modal-title">🏅 الإنجازات والإحصائيات</div>
+    <div class="stats-tabs">
+      <button type="button" class="tab selected" data-tab="ach">الإنجازات</button>
+      <button type="button" class="tab" data-tab="st">الإحصائيات</button>
+    </div>
+    <div id="stats-body" class="stats-body"></div>
+    <button id="stats-close" class="text-btn subtle full" type="button">إغلاق</button>
   </div>
 </div>
 
@@ -1141,6 +1556,32 @@ function moveToSan(st, m, legalMoves) {
   return SAN_LETTER[type] + dis + (m.captured ? 'x' : '') + dest;
 }
 
+/* تحويل الحالة إلى FEN (للألغاز والتصدير) */
+function stateToFen(st) {
+  let s = '';
+  for (let r = 0; r < 8; r++) {
+    let empty = 0;
+    for (let c = 0; c < 8; c++) {
+      const p = st.board[r * 8 + c];
+      if (!p) { empty++; continue; }
+      if (empty) { s += empty; empty = 0; }
+      s += PIECE_CHARS[p + 6];
+    }
+    if (empty) s += empty;
+    if (r < 7) s += '/';
+  }
+  s += ' ' + (st.turn > 0 ? 'w' : 'b') + ' ';
+  let cast = '';
+  if (st.castling.wk) cast += 'K';
+  if (st.castling.wq) cast += 'Q';
+  if (st.castling.bk) cast += 'k';
+  if (st.castling.bq) cast += 'q';
+  s += (cast || '-') + ' ';
+  s += (st.enPassant >= 0 ? FILES[st.enPassant & 7] + (8 - (st.enPassant >> 3)) : '-') + ' ';
+  s += st.halfmove + ' 1';
+  return s;
+}
+
 /* ---------- قواعد التعادل ---------- */
 /* نقص القطع: لا يمكن نظرياً تحقيق كش مات */
 function insufficientMaterial(b) {
@@ -1309,15 +1750,173 @@ function chooseAiMove(st, difficulty) {
     return pool[(Math.random() * pool.length) | 0].m;
   }
 
-  /* صعب: بحث بعمق 3 مع تشذيب ألفا-بيتا وبحث الهدوء */
-  let best = null, alpha = -Infinity;
+  /* صعب: بحث متدرج حتى عمق 4 ضمن حد زمني (تقوية كبيرة مع بقاء الاستجابة سريعة) */
+  let npieces = 0;
+  for (let i = 0; i < 64; i++) if (st.board[i]) npieces++;
+  const r = rootSearchTimed(st, npieces > 30 ? 3 : 4, 1600);
+  return (r && r.move) || legal[0];
+}
+
+/* ---------- بحث الجذر (للمراجعة والتلميح والشريط) ---------- */
+/* بحث جذر بعمق ثابت؛ wantSecond=true يبحث كل نقلة بنافذة كاملة
+   للحصول على ثاني أفضل نقلة بدقة (للتصنيف الذكي). */
+function rootSearch(st, depth, wantSecond) {
+  const legal = generateLegalMoves(st);
+  if (!legal.length) {
+    return { move: null, score: kingAttacked(st, st.turn) ? -100000 : 0, second: -100000, legal: legal };
+  }
+  orderMoves(legal);
+  let best = null, alpha = -Infinity, second = -Infinity;
   for (const m of legal) {
     const u = makeMove(st, m);
-    const sc = -negamax(st, 2, -Infinity, -alpha, 1);
+    if (kingAttacked(st, -st.turn)) { unmakeMove(st, m, u); continue; }
+    const sc = -negamax(st, depth - 1, -Infinity, wantSecond ? Infinity : -alpha, 1);
     unmakeMove(st, m, u);
-    if (sc > alpha) { alpha = sc; best = m; }
+    if (sc > alpha) {
+      if (best) second = alpha;
+      alpha = sc; best = m;
+    } else if (sc > second) second = sc;
   }
-  return best;
+  if (second === -Infinity) second = alpha - 1000;
+  return { move: best, score: alpha, second: second, legal: legal };
+}
+
+/* بحث متدرج موقوت بين نقلات الجذر — لا يقاطع داخل البحث
+   فيبقى الوضع سليماً دائماً؛ يعيد أفضل نتيجة لعمق مكتمل. */
+function rootSearchTimed(st, maxDepth, budgetMs) {
+  const t0 = Date.now();
+  let best = null;
+  for (let d = 2; d <= maxDepth; d++) {
+    const legal = generateLegalMoves(st);
+    if (!legal.length) return { move: null, score: 0, depth: 0 };
+    orderMoves(legal);
+    let bd = null, al = -Infinity, completed = true;
+    for (const m of legal) {
+      if (Date.now() - t0 > budgetMs) { completed = false; break; }
+      const u = makeMove(st, m);
+      if (kingAttacked(st, -st.turn)) { unmakeMove(st, m, u); continue; }
+      const sc = -negamax(st, d - 1, -Infinity, -al, 1);
+      unmakeMove(st, m, u);
+      if (sc > al) { al = sc; bd = m; }
+    }
+    if (bd && (completed || !best)) best = { move: bd, score: al, depth: d };
+    if (!completed) break;
+    if (al > 90000) break; /* وجد ماتاً — يكفي */
+  }
+  return best || { move: null, score: 0, depth: 0 };
+}
+
+/* ---------- تصنيف النقلات (للمراجعة) ---------- */
+/* deltaCp: الفقد بالنقاط (سنتي بيدق) بين أفضل نقلة والنقلة الملعوبة.
+   opts: { isBook, mateLost, sacrifice, unique } */
+function classifyMove(deltaCp, opts) {
+  opts = opts || {};
+  if (opts.mateLost) return 'blunder';
+  if (deltaCp <= 15 && opts.sacrifice && opts.unique && opts.best) return 'brilliant';
+  if (deltaCp <= 10 && opts.unique && opts.gap >= 150) return 'great';
+  if (opts.isBook) return 'book';
+  if (deltaCp <= 20) return 'best';
+  if (deltaCp <= 60) return 'excellent';
+  if (deltaCp <= 110) return 'good';
+  if (deltaCp <= 220) return 'inaccuracy';
+  if (deltaCp <= 450) return 'mistake';
+  return 'blunder';
+}
+
+/* دقة النقلة الواحدة (0-100) ثم دقة المباراة كمتوسط */
+function moveAccuracy(deltaCp) {
+  if (deltaCp <= 0) return 100;
+  return Math.max(0, Math.round(100 * Math.exp(-deltaCp / 250)));
+}
+function gameAccuracy(deltas) {
+  if (!deltas.length) return 0;
+  let s = 0;
+  for (const d of deltas) s += moveAccuracy(d);
+  return Math.round(s / deltas.length);
+}
+
+/* هل توجد أي نقلة قانونية؟ (أسرع من توليد القائمة كاملة عند الفحص) */
+function hasAnyLegalMove(st) {
+  const moves = generateMoves(st, st.turn);
+  for (const m of moves) {
+    const u = makeMove(st, m);
+    const ok = !kingAttacked(st, -st.turn);
+    unmakeMove(st, m, u);
+    if (ok) return true;
+  }
+  return false;
+}
+
+/* هل النقلة m (القانونية في st) تحقق كش مات فوري؟ */
+function isMateInOne(st, m) {
+  const u = makeMove(st, m);
+  const mate = kingAttacked(st, st.turn) && !hasAnyLegalMove(st);
+  unmakeMove(st, m, u);
+  return mate;
+}
+
+/* ---------- أسماء الافتتاحيات الشائعة ---------- */
+const OPENINGS = [
+  ['e4 e5 Nf3 Nc6 Bb5', 'الافتتاح الإسباني (روبي لوبيز)'],
+  ['e4 e5 Nf3 Nc6 Bc4 Bc5', 'الافتتاح الإيطالي — جيوكو بيانو'],
+  ['e4 e5 Nf3 Nc6 Bc4', 'الافتتاح الإيطالي'],
+  ['e4 e5 Nf3 Nc6 d4', 'افتتاحية سكوتش'],
+  ['e4 e5 Nf3 Nc6 Nc3', 'افتتاحية الفرسان الأربعة'],
+  ['e4 e5 Nf3 Nf6', 'دفاع بيتروف'],
+  ['e4 e5 Nf3 d6', 'دفاع فيليدور'],
+  ['e4 e5 Nf3', 'افتتاحية بيدق الملك'],
+  ['e4 e5 f4', 'غامبت الملك'],
+  ['e4 e5 Nc3', 'افتتاحية فيينا'],
+  ['e4 e5 Bc4', 'افتتاحية فيل الملك'],
+  ['e4 e5', 'اللعبة المفتوحة'],
+  ['e4 c5 Nf3 d6', 'الدفاع الصقلي — الكلاسيكي'],
+  ['e4 c5 Nf3', 'الدفاع الصقلي'],
+  ['e4 c5', 'الدفاع الصقلي'],
+  ['e4 e6', 'الدفاع الفرنسي'],
+  ['e4 c6', 'دفاع كارو-كان'],
+  ['e4 d5', 'الدفاع الإسكندنافي'],
+  ['e4 Nf6', 'دفاع أليخين'],
+  ['e4 d6', 'دفاع البيك'],
+  ['e4 g6', 'الدفاع الحديث'],
+  ['e4', 'افتتاحية بيدق الملك'],
+  ['d4 d5 c4 e6', 'غامبت الوزير المرفوض'],
+  ['d4 d5 c4 c6', 'الدفاع السلافي'],
+  ['d4 d5 c4 dxc4', 'غامبت الوزير المقبول'],
+  ['d4 d5 c4', 'غامبت الوزير'],
+  ['d4 d5 Nf3 Nf6', 'لعبة الرخ والوزير'],
+  ['d4 d5', 'اللعبة المغلقة'],
+  ['d4 Nf6 c4 e6 Nc3 Bb4', 'الدفاع النيمزو-هندي'],
+  ['d4 Nf6 c4 e6', 'الدفاع الهندي للوزير'],
+  ['d4 Nf6 c4 g6 Nc3 Bg7', 'الدفاع الهندي الملكي'],
+  ['d4 Nf6 c4 g6', 'الدفاع الهندي الملكي'],
+  ['d4 Nf6 c4', 'الدفاع الهندي'],
+  ['d4 Nf6 Nf3 g6', 'الدفاع الهندي الملكي'],
+  ['d4 Nf6', 'الدفاع الهندي'],
+  ['d4 f5', 'الدفاع الهولندي'],
+  ['d4', 'افتتاحية بيدق الوزير'],
+  ['c4', 'الافتتاح الإنجليزي'],
+  ['Nf3', 'افتتاحية زوكيرتورت'],
+  ['b3', 'هجوم نيمزو-لارسن'],
+  ['g3', 'افتتاحية فيل الملك المستبد'],
+  ['f4', 'افتتاحية بيرد'],
+  ['b3 e5', 'هجوم نيمزو-لارسن'],
+  ['Nf3 d5 g3', 'نظام ريتي']
+];
+
+/* أطول بادئة مطابقة من سجل النقلات → اسم الافتتاحية */
+function detectOpening(sans) {
+  const clean = sans.map(s => s.replace(/[+#]/g, ''));
+  let bestLen = -1, bestName = null;
+  for (const pair of OPENINGS) {
+    const parts = pair[0].split(' ');
+    if (clean.length < parts.length) continue;
+    let ok = true;
+    for (let i = 0; i < parts.length; i++) {
+      if (clean[i] !== parts[i]) { ok = false; break; }
+    }
+    if (ok && parts.length > bestLen) { bestLen = parts.length; bestName = pair[1]; }
+  }
+  return bestName;
 }
 
 /* ---------- نظام النقاط والتحليل (للواجهة) ---------- */
@@ -1520,6 +2119,26 @@ function perft(st, depth) {
 </script>
 <script>
 /* ============================================================
+   قاعدة بيانات الألغاز — وُلّدت آلياً بواسطة gen_puzzles.js
+   وتحقق المحرك من سلامة كل لغز (انظر verify_puzzles.js).
+   f: وضع FEN | t: النوع | l: خط الحل [[من, إلى, ترقية]...]
+   ============================================================ */
+'use strict';
+const PUZZLES = [{"f":"rnb1k1n1/pp2p3/2pp2N1/7r/P3P3/1P6/2P2qP1/RNBK2R1 b - - 1 1","t":"mate1","l":[[2,38,0]]},{"f":"6n1/2k5/6q1/5p2/8/4P3/r7/2B4K b - - 2 1","t":"mate1","l":[[22,54,0]]},{"f":"8/r7/bkp5/p3P3/K7/P5p1/8/2n5 b - - 0 1","t":"mate1","l":[[16,25,0]]},{"f":"8/1r6/bkp1P3/p7/K7/P5p1/8/2n5 b - - 0 1","t":"mate1","l":[[16,25,0]]},{"f":"8/3P4/bkp5/p7/K7/P5p1/8/2n5 b - - 0 1","t":"mate1","l":[[16,25,0]]},{"f":"8/8/k1p5/p7/KB4b1/P7/6p1/2n5 b - - 3 1","t":"mate1","l":[[38,59,0]]},{"f":"8/8/k1p5/B7/1K6/P7/8/2nb2q1 b - - 2 1","t":"mate1","l":[[62,35,0]]},{"f":"1k6/1P2p1r1/p7/8/4p3/4q3/8/5K2 b - - 0 1","t":"mate1","l":[[14,62,0]]},{"f":"4k1r1/p6p/1p6/5P2/4r2P/8/8/1N5K b - - 0 1","t":"mate1","l":[[36,39,0]]},{"f":"4k3/p6p/1p6/5Pr1/4r2P/2N5/8/7K b - - 2 1","t":"mate1","l":[[36,39,0]]},{"f":"4k3/p6p/5P2/1p4r1/4r2P/2N5/8/7K b - - 0 1","t":"mate1","l":[[36,39,0]]},{"f":"7r/p3p3/1q1k2pb/1P5p/2P1K3/P6N/7P/R6R b - - 1 1","t":"mate1","l":[[17,44,0]]},{"f":"7r/p3p3/1q1k2p1/1P4bp/2P1K3/P6N/7P/2R4R b - - 3 1","t":"mate1","l":[[17,44,0]]},{"f":"4r3/1pk1pbb1/3p4/p7/2p2P1r/5P2/P5P1/R1N2BKR b - - 1 1","t":"mate1","l":[[14,35,0]]},{"f":"5r2/p2k2p1/8/b7/4P2p/2n5/2r5/7K b - - 1 1","t":"mate1","l":[[5,61,0]]},{"f":"5r2/p2k2p1/8/b3P3/n6p/8/2r5/7K b - - 0 1","t":"mate1","l":[[5,61,0]]},{"f":"7r/p1pn2pp/8/1P3k1P/8/1b4q1/4r1P1/b1K3NR b - - 1 1","t":"mate1","l":[[46,60,0]]},{"f":"7r/p2n2pp/8/1Pp2k1P/8/1b4q1/4r1PR/b1K3N1 b - - 1 1","t":"mate1","l":[[46,60,0]]},{"f":"7r/p2n3p/6P1/1Pp2k2/8/1b4q1/4r1PR/b1K3N1 b - - 0 1","t":"mate1","l":[[46,60,0]]},{"f":"7r/p2n3p/1P4P1/2p1k3/8/1b4q1/4r1PR/b1K3N1 b - - 0 1","t":"mate1","l":[[46,60,0]]},{"f":"7r/P2n3p/6P1/2p1k3/8/1b4q1/6rR/b1K3N1 b - - 0 1","t":"mate1","l":[[46,60,0]]},{"f":"B6r/3n3p/6P1/2p1k3/b7/6q1/6rR/b1K3N1 b - - 0 1","t":"mate1","l":[[46,60,0]]},{"f":"B6r/3n3p/2b3PR/2p1k3/8/6q1/6r1/b1K3N1 b - - 2 1","t":"mate1","l":[[46,60,0]]},{"f":"8/2r2p2/1b6/5p2/4knp1/8/8/5K2 b - - 7 1","t":"mate1","l":[[10,58,0]]},{"f":"2b1k2r/3p1p2/1p4pB/8/2KP4/N6q/4PP2/n7 b - - 1 1","t":"mate1","l":[[47,41,0]]},{"f":"2b1k2r/3p1p2/1p4p1/8/2KP1B2/q7/4PP2/n7 b - - 1 1","t":"mate1","l":[[40,41,0]]},{"f":"2b1k2r/3p4/1p3pp1/3q4/1K3B2/8/4PP2/n7 b - - 1 1","t":"mate1","l":[[27,41,0]]},{"f":"2b1k2r/3p4/1p2qpp1/8/1K3B2/4P3/5P2/n7 b - - 0 1","t":"mate1","l":[[20,41,0]]},{"f":"2b1k2r/3p4/1p3pp1/8/1K3B2/4PP2/q7/n7 b - - 0 1","t":"mate1","l":[[48,41,0]]},{"f":"1Bb1k1r1/3p4/1p3pp1/8/1K6/4PP2/q7/n7 b - - 2 1","t":"mate1","l":[[48,41,0]]},{"f":"5k2/2P2p2/4p3/8/1p2r3/7p/4P2q/4K2n b - - 0 1","t":"mate1","l":[[55,52,0]]},{"f":"5k1r/N6R/n1p5/2n1Q1p1/PP2B1p1/4K3/2PP4/R1B5 w - - 0 1","t":"mate1","l":[[28,7,0]]},{"f":"8/2p3n1/p5kb/P5q1/8/3r4/8/3bK3 b - - 1 1","t":"mate1","l":[[30,62,0]]},{"f":"4n3/2p4k/p7/8/8/3rb3/4K3/2q5 b - - 4 1","t":"mate1","l":[[58,59,0]]},{"f":"8/4pk2/5p1K/p2p4/8/8/8/2r5 b - - 0 1","t":"mate1","l":[[58,63,0]]},{"f":"5k2/8/8/1pp2p1Q/p4B2/6R1/b1NN4/7K w - - 1 1","t":"mate1","l":[[37,19,0]]},{"f":"R3n1k1/8/1P4K1/P2p4/3P4/4B2p/8/8 w - - 8 1","t":"mate1","l":[[0,4,0]]},{"f":"rnb2k1r/ppp2pbp/8/4p1p1/1Pp2P2/5K2/P2QP1BR/RNB3N1 w - - 1 1","t":"mate1","l":[[51,3,0]]},{"f":"rnb2k2/ppp2pbr/8/4p1p1/1Pp2P2/5K2/P2QP1B1/RNB3N1 w - - 0 1","t":"mate1","l":[[51,3,0]]},{"f":"rnb2k2/ppp2pbr/8/4p3/1PpQ1p2/5K2/P3P1B1/RNB3N1 w - - 0 1","t":"mate1","l":[[35,3,0]]},{"f":"r1b4k/1p2R3/2p1p3/1n6/7K/8/4P3/5BQ1 w - - 3 1","t":"mate1","l":[[62,14,0]]},{"f":"5k2/3p4/8/p4p2/K2N2p1/8/1b6/4q3 b - - 1 1","t":"mate1","l":[[60,33,0]]},{"f":"8/3p1k2/8/p4p2/K5p1/8/1b2N3/4q3 b - - 3 1","t":"mate1","l":[[60,33,0]]},{"f":"r1b1k3/ppn4p/2p3r1/2Np4/7q/PP2P1P1/2PP1Pp1/R1BQ2K1 b q - 1 1","t":"mate1","l":[[39,63,0]]},{"f":"8/8/1b4pk/1P3p1p/Q4P1K/6PB/1P2P3/R7 b - - 0 1","t":"mate1","l":[[17,3,0]]},{"f":"1B2k3/1Q6/8/3K1p2/1P3P2/4P3/7R/8 w - - 1 1","t":"mate1","l":[[55,7,0]]},{"f":"1Bk5/8/8/3Q1p2/1P1K1P2/4P2R/8/8 w - - 9 1","t":"mate1","l":[[47,7,0]]},{"f":"4k3/8/Q7/B6p/p6P/P1P5/4KR2/8 w - - 12 1","t":"mate1","l":[[16,20,0]]},{"f":"1n1qk3/2pppp1r/7p/1b2b3/1p1P4/8/P1rN4/R2QK3 b - - 1 1","t":"mate1","l":[[28,46,0]]},{"f":"3r1B2/pp6/4R3/kb6/3p4/PP5P/2p3P1/RNK5 w - - 0 1","t":"mate1","l":[[5,33,0]]},{"f":"rnbk1bnr/3p3p/5p1q/1pQ5/1P6/8/P1P1PPPP/RN2KBNR b KQ - 0 1","t":"mate1","l":[[23,58,0]]},{"f":"r1bk1bnr/3p3p/2Q2p1q/1p6/1P6/8/P1P1PPPP/RN2KBNR b KQ - 0 1","t":"mate1","l":[[23,58,0]]},{"f":"r1bk2nr/3p3p/2Q2p1q/1p6/1b6/8/P1PNPPPP/R3KBNR b KQ - 1 1","t":"mate1","l":[[23,51,0]]},{"f":"1nb1kb1r/1pp2ppp/7n/3pp3/7q/2KP4/RPP1P1B1/2BQ1R2 b k - 1 1","t":"mate1","l":[[39,33,0]]},{"f":"r1b2kn1/1pNB1p1r/2n5/p5B1/P1P5/5pb1/1P2Q3/R1N2K2 b - - 4 1","t":"mate1","l":[[15,63,0]]},{"f":"2b2kn1/1p1B1p1r/N1n5/p5B1/P1P5/5pb1/1P2Q3/R1N2K2 b - - 0 1","t":"mate1","l":[[15,63,0]]},{"f":"8/2R5/5k2/3B1P2/6P1/5NK1/7P/8 w - - 17 1","t":"mate1","l":[[10,13,0]]},{"f":"1R6/4k3/8/3Q3p/3B4/7n/P4P2/1RK5 w - - 4 1","t":"mate1","l":[[57,9,0]]},{"f":"6k1/4Q3/8/PR6/8/8/3K4/6B1 w - - 5 1","t":"mate1","l":[[25,1,0]]},{"f":"7k/4Q3/1R6/P7/8/8/3K4/6B1 w - - 7 1","t":"mate1","l":[[17,1,0]]},{"f":"6k1/4Q3/PR6/8/8/8/3K4/6B1 w - - 1 1","t":"mate1","l":[[17,1,0]]},{"f":"7k/Q7/PR6/8/8/8/3K4/6B1 w - - 3 1","t":"mate1","l":[[17,1,0]]},{"f":"r1b2k2/R5p1/5p2/1q1p3p/8/8/5P2/K4B2 b - - 2 1","t":"mate1","l":[[0,8,0]]},{"f":"r1b2k2/6p1/5p2/3p3p/1q6/R7/5P2/K4B2 b - - 4 1","t":"mate1","l":[[0,40,0]]},{"f":"5bnr/3p2p1/8/5p1k/3B1P1p/5q1r/8/3R2K1 b - - 1 1","t":"mate1","l":[[47,63,0]]},{"f":"5bnr/4p1kp/4Q3/1p3p2/1pN5/7P/P1P1P1p1/RNB1KBR1 w Q - 0 1","t":"mate1","l":[[62,54,0]]},{"f":"5bnr/4p1kp/4Q3/5p2/ppN5/7P/2P1P1p1/RNB1KBR1 w Q - 0 1","t":"mate1","l":[[62,54,0]]},{"f":"3k4/5Q1B/8/8/2P3P1/1P6/R2BK3/8 w - - 15 1","t":"mate1","l":[[48,0,0]]},{"f":"2k5/5Q1B/8/8/2P3P1/1P6/R2B4/4K3 w - - 17 1","t":"mate1","l":[[48,0,0]]},{"f":"1n2k3/3q4/8/2P2p2/8/8/4r3/6K1 b - - 9 1","t":"mate1","l":[[11,59,0]]},{"f":"n7/4b2P/5k2/8/4p2P/8/P5K1/6NR w - - 1 1","t":"fork","l":[[15,7,5],[21,13,0]]},{"f":"n7/7P/5k2/2b5/4p2P/8/P5K1/6NR w - - 5 1","t":"fork","l":[[15,7,5],[21,20,0]]},{"f":"4k3/1B6/n7/1p2P1p1/3r1n2/8/5R1N/4K3 b - - 2 1","t":"fork","l":[[37,43,0],[60,52,0]]},{"f":"2B5/4k3/n7/1p2P1p1/r4n2/8/5R1N/4K3 b - - 8 1","t":"fork","l":[[37,43,0],[60,52,0]]},{"f":"8/8/8/4k3/3r1p2/1B6/7N/7K w - - 3 1","t":"fork","l":[[55,45,0],[28,36,0]]},{"f":"r3Nb1r/ppp2pp1/2n1k3/4pb2/2P4P/8/PP1P1P2/RNB1K1NR w - - 1 1","t":"fork","l":[[4,10,0],[20,11,0]]},{"f":"1nr5/3P4/8/2p1p3/5p2/k2P4/4K3/8 w - - 0 1","t":"fork","l":[[11,2,5],[37,45,0]]},{"f":"r1N3nr/3k4/2np1p1b/7p/2P3PP/8/PPP1PK2/R3NB1R w - - 3 1","t":"fork","l":[[2,17,0],[11,3,0]]},{"f":"1r1k2n1/N7/3p3r/6pp/P1P1P1P1/1P6/2P2K2/3RNB1R w - - 1 1","t":"fork","l":[[8,18,0],[3,2,0]]},{"f":"1r1k2n1/N7/3pr3/6pP/P1P1P3/1P6/2P2K2/3RNB1R w - - 1 1","t":"fork","l":[[8,18,0],[3,2,0]]},{"f":"1r1k4/N7/3prn2/6pP/P1P1P3/1P6/2P2K2/3RNBR1 w - - 3 1","t":"fork","l":[[8,18,0],[3,2,0]]},{"f":"1r6/N3k2B/6R1/4P3/P1PK4/8/2P3N1/8 w - - 5 1","t":"fork","l":[[8,18,0],[12,11,0]]},{"f":"8/N3k2B/6R1/3KP3/PrP5/8/2P3N1/8 w - - 7 1","t":"fork","l":[[8,18,0],[12,11,0]]},{"f":"r3kbn1/1p2ppp1/2p5/p7/P1n5/2NP1P2/8/q1BK1BNR b q - 1 1","t":"fork","l":[[34,44,0],[59,51,0]]},{"f":"4qb1r/p1p1p2p/3pk1p1/3N4/2P2p2/P4n2/1P1P3P/R1B2KNR w - - 5 1","t":"fork","l":[[27,10,0],[20,11,0]]},{"f":"5b1r/p1q1p2p/3pk1p1/8/1PPn4/P5B1/7P/R3K1NR b - - 1 1","t":"fork","l":[[35,50,0],[60,61,0]]},{"f":"5b1r/p1q1p3/3pk1p1/7p/1PPn4/P5BN/7P/R3K2R b - - 1 1","t":"fork","l":[[35,50,0],[60,51,0]]},{"f":"1q3b1r/p3p3/3pk1p1/1P5p/2Pn4/P5BN/7P/R3K2R b - - 0 1","t":"fork","l":[[35,50,0],[60,51,0]]},{"f":"7r/p3p3/6p1/1Pk3qp/2P1K3/P7/2R4P/3R4 w - - 0 1","t":"fork","l":[[59,27,0],[30,27,0]]},{"f":"7r/p3p3/6p1/1Pk3q1/2P1K2p/P7/7P/2RR4 w - - 0 1","t":"fork","l":[[59,27,0],[30,27,0]]},{"f":"8/p3p3/6pr/1Pk3q1/2PRK2p/P7/7P/2R5 w - - 2 1","t":"fork","l":[[35,27,0],[30,27,0]]},{"f":"3r4/p1ppk3/b7/1pn5/2PN4/P5rP/1P1N4/1R2KB1R w K - 0 1","t":"fork","l":[[35,29,0],[12,5,0]]},{"f":"8/p1ppk3/b7/1p3r2/2PN3P/P5r1/1P1NK3/4RB1R w - - 1 1","t":"fork","l":[[35,29,0],[12,5,0]]},{"f":"1nbq1knr/1p1p2p1/8/2P1p2p/P7/2P1p1P1/RP1N3P/2B1K1NR b K - 1 1","t":"fork","l":[[44,51,0],[58,51,0]]},{"f":"1nbq1k1r/1p1pn1p1/8/2P1p2p/P5P1/2P1p3/RP1N3P/2B1K1NR b K - 0 1","t":"fork","l":[[44,51,0],[58,51,0]]},{"f":"2b1k3/1p1pn1p1/n3N3/4p3/P4B2/3K4/RP4rn/8 b - - 11 1","t":"fork","l":[[16,33,0],[43,34,0]]},{"f":"r1b3n1/P3kp2/3q2p1/5p2/2P5/BP2P1r1/3P3R/b2QK3 w - - 0 1","t":"fork","l":[[40,19,0],[12,19,0]]},{"f":"2k5/3b1P2/3p1b2/p7/1Pp5/K7/8/8 w - - 8 1","t":"fork","l":[[13,5,5],[21,3,0]]},{"f":"8/8/3B4/5K2/3P3k/R7/8/4r3 w - - 2 1","t":"fork","l":[[19,46,0],[39,31,0]]},{"f":"r3kbn1/1qp1p1p1/8/3pP1pr/pp6/NP1B1P2/PP1P4/R1BQK1N1 w Qq - 1 1","t":"fork","l":[[43,22,0],[4,3,0]]},{"f":"1n6/5p2/p5k1/P1P5/2B2K2/R3P3/8/1r1b4 w - - 0 1","t":"fork","l":[[34,43,0],[22,21,0]]},{"f":"1n6/5p2/p5k1/P1P5/2B5/R3PK2/8/1r6 w - - 1 1","t":"fork","l":[[34,43,0],[22,21,0]]},{"f":"r1b1k3/pNn4p/2p5/8/5q2/Pp2P3/RB1P2p1/3Q2K1 b q - 1 1","t":"fork","l":[[37,61,0],[59,61,0]]},{"f":"6n1/1B1k4/bn4r1/p1p1p1Bp/N1P3Pb/P5PR/4K3/R5N1 w - - 9 1","t":"fork","l":[[32,26,0],[11,10,0]]},{"f":"8/3kn3/bn3r2/p1p1p2p/N1P3Pb/P3B1PR/4K1B1/R5N1 w - - 13 1","t":"fork","l":[[32,26,0],[11,2,0]]},{"f":"8/3kn3/bn3r2/p1p1p2p/N5Pb/P3B1P1/3K2B1/R5NR w - - 2 1","t":"fork","l":[[32,26,0],[11,2,0]]},{"f":"8/3kn3/bn3r2/p1p1p3/N5pb/P3B1P1/3K2B1/2R3NR w - - 0 1","t":"fork","l":[[32,26,0],[11,2,0]]},{"f":"b1k5/2P2pq1/6p1/1B1p3p/8/1r5P/4K3/3n4 b - - 2 1","t":"fork","l":[[59,42,0],[52,61,0]]},{"f":"6k1/5r2/p7/2n2bbp/2B1P3/6p1/P5R1/RK6 b - e3 0 1","t":"fork","l":[[29,36,0],[54,50,0]]},{"f":"3k4/1Pr5/2p2p2/8/8/4K3/4P1P1/5B2 w - - 1 1","t":"fork","l":[[9,1,5],[3,11,0]]},{"f":"3k3r/p4p1p/1p1Np3/3n2p1/PB1P4/5K2/B7/6N1 w - - 1 1","t":"fork","l":[[19,13,0],[3,4,0]]},{"f":"r1b1k1n1/1pp2p1r/2n1p3/pN4p1/P1Pbp3/5P1B/1P1B1P2/R1NQ1K2 w q - 0 1","t":"fork","l":[[25,10,0],[4,5,0]]},{"f":"r2q1b2/p1p1kp1r/np6/1P1p2p1/8/P1P5/3PPPbP/RNB1KB1R b KQ - 0 1","t":"win","l":[[54,63,0],[25,16,0]]},{"f":"3k4/p2r4/8/2b2p2/5p2/P1B5/8/1K3B1b b - - 1 1","t":"win","l":[[11,59,0],[57,50,0]]},{"f":"8/p2r2k1/8/2b2p2/2b2p2/P7/2K5/5B2 b - - 3 1","t":"win","l":[[34,61,0],[40,32,0]]},{"f":"8/3r2k1/p7/2b2p2/2b2p2/P7/2K1B3/8 b - - 1 1","t":"win","l":[[34,52,0],[40,32,0]]},{"f":"1r3b1r/1N2k2p/1np1P3/7P/4p3/1P5P/P3NK2/R2Q3R w - - 0 1","t":"win","l":[[59,19,0],[12,21,0]]},{"f":"n1R2b2/8/7r/5k1P/1P2p3/7P/P6K/6NR w - - 0 1","t":"win","l":[[2,5,0],[29,20,0]]},{"f":"n4b2/8/2r5/5k1P/1P2p3/2R4P/P6K/6NR w - - 2 1","t":"win","l":[[42,18,0],[5,33,0]]},{"f":"n7/6b1/8/2r2k1P/1P2p2P/8/P6K/6NR w - - 1 1","t":"win","l":[[33,26,0],[0,10,0]]},{"f":"8/1k2N3/8/7P/8/4p3/P6K/8 b - - 3 1","t":"win","l":[[44,52,0],[12,27,0]]},{"f":"8/8/2k3NP/8/8/8/P3p2K/8 b - - 0 1","t":"win","l":[[52,60,5],[23,15,0]]},{"f":"8/8/4N2P/4k3/8/8/P7/4n1K1 b - - 5 1","t":"win","l":[[28,20,0],[62,53,0]]},{"f":"rn1qk3/p3pp2/1p1p1p1b/1P4p1/8/2N2b2/R1PP1KPP/2BQ1B1R b q - 1 1","t":"win","l":[[45,59,0],[42,59,0]]},{"f":"rn1qk3/4pp2/1p1p1p1b/pP4p1/8/2N2b2/2PP1KPP/R1BQ1B1R b q - 1 1","t":"win","l":[[45,59,0],[42,59,0]]},{"f":"rn1qk3/4pp2/1N1p1p1b/pb4p1/8/8/2PP1KPP/R1B3R1 b q - 0 1","t":"win","l":[[3,17,0],[51,35,0]]},{"f":"rn1qk3/4ppb1/1N1p1p2/pb4p1/8/6K1/2PP2PP/R1B3R1 b q - 2 1","t":"win","l":[[3,17,0],[58,49,0]]},{"f":"rn2k3/4ppb1/3p1p2/Rb4p1/8/3P4/2P3PK/2B5 b q - 0 1","t":"win","l":[[0,24,0],[58,51,0]]},{"f":"Rn2k3/4pp2/5p1b/1b1p2p1/8/3P4/2P3PK/2B5 w - - 0 1","t":"win","l":[[0,1,0],[4,11,0]]},{"f":"8/3k1p2/4pp2/6b1/8/1p1b4/6PK/8 b - - 1 1","t":"win","l":[[41,49,0],[55,46,0]]},{"f":"8/3k1p1b/4pp2/6b1/8/1p4K1/6P1/8 b - - 3 1","t":"win","l":[[41,49,0],[46,45,0]]},{"f":"8/3k1p1b/4pp2/8/7K/1p6/6P1/2b5 b - - 5 1","t":"win","l":[[41,49,0],[39,38,0]]},{"f":"3k4/5p1b/4pp2/7K/8/1p6/6P1/2b5 b - - 7 1","t":"win","l":[[41,49,0],[31,38,0]]},{"f":"3k4/5p1b/4pp2/7K/6P1/bp6/8/8 b - - 0 1","t":"win","l":[[41,49,0],[38,30,0]]},{"f":"3k1b2/5p1b/4pp2/8/6PK/1p6/8/8 b - - 2 1","t":"win","l":[[41,49,0],[38,30,0]]},{"f":"3k1bb1/5p2/4pp2/8/6P1/1p5K/8/8 b - - 4 1","t":"win","l":[[41,49,0],[38,30,0]]},{"f":"3k1b2/5p1b/4pp2/8/6P1/1p6/7K/8 b - - 6 1","t":"win","l":[[41,49,0],[38,30,0]]},{"f":"3k4/5pbb/4pp2/8/6P1/1p5K/8/8 b - - 8 1","t":"win","l":[[41,49,0],[47,46,0]]},{"f":"3k4/5pb1/4ppb1/8/6P1/1p6/7K/8 b - - 10 1","t":"win","l":[[41,49,0],[55,46,0]]},{"f":"3k4/5p2/4ppbb/8/6P1/1p5K/8/8 b - - 12 1","t":"win","l":[[41,49,0],[38,30,0]]},{"f":"3k4/5p2/4ppb1/6P1/8/1p5K/8/2b5 b - - 0 1","t":"win","l":[[41,49,0],[47,38,0]]},{"f":"3k4/5p2/4ppb1/6b1/6K1/1p6/8/8 b - - 1 1","t":"win","l":[[41,49,0],[38,45,0]]},{"f":"3k4/5p2/4pp2/6b1/4b3/1p5K/8/8 b - - 3 1","t":"win","l":[[41,49,0],[47,38,0]]},{"f":"3k4/5p2/4pp2/5bb1/8/1p4K1/8/8 b - - 5 1","t":"win","l":[[41,49,0],[46,45,0]]},{"f":"r5nr/1ppnkp2/1p5p/3p2p1/4P3/2P2B2/7P/1NrK1QNR w - - 0 1","t":"win","l":[[59,58,0],[27,36,0]]},{"f":"r5nr/1ppnkp2/1p5p/6p1/3pP3/2P2B2/4K2P/1Nr2QNR w - - 0 1","t":"win","l":[[61,58,0],[0,48,0]]},{"f":"r5nr/1p1nkp2/1pp4p/6Q1/3pP3/2P2B2/4K2P/1N4NR b - - 0 1","t":"win","l":[[23,30,0],[42,35,0]]},{"f":"r5n1/1p1nkp2/1pp5/6p1/3PP3/5B2/3r4/1N3KNR w - - 1 1","t":"win","l":[[57,51,0],[6,21,0]]},{"f":"1n6/1B2k3/1p3n2/6p1/2rPP3/5N2/8/4K2R b - - 3 1","t":"win","l":[[34,58,0],[60,51,0]]},{"f":"1n6/1B2k3/8/1p4p1/3rPn2/5N2/8/4K1R1 w - - 0 1","t":"win","l":[[45,35,0],[37,43,0]]},{"f":"1n6/1B1k4/8/1p4p1/3rPn2/5N2/8/4KR2 w - - 2 1","t":"win","l":[[45,35,0],[11,10,0]]},{"f":"1n2k3/1B6/8/1p4p1/3rPn2/5N2/5R2/4K3 w - - 4 1","t":"win","l":[[45,35,0],[37,43,0]]},{"f":"2B5/4k3/n7/4P1p1/r4R2/1p6/7N/4K3 w - - 0 1","t":"win","l":[[37,32,0],[16,26,0]]},{"f":"2B5/4k3/n3P3/8/r4p2/1p6/5K1N/8 b - - 0 1","t":"win","l":[[41,49,0],[2,11,0]]},{"f":"2b2b1R/4nQp1/rpNp4/6k1/P3P3/8/1P6/4RKN1 w - - 3 1","t":"mate2","l":[[7,31,0],[30,38,0],[13,45,0]]},{"f":"2b2b1R/r3nQp1/1pNp4/6k1/PP2P3/8/8/4RKN1 w - - 1 1","t":"mate2","l":[[7,31,0],[30,38,0],[13,45,0]]},{"f":"q3k1n1/3n4/4p1p1/5p2/p6r/Pp2P3/1PP5/R1B1RK2 b - - 1 1","t":"mate2","l":[[0,45,0],[61,62,0],[39,63,0]]},{"f":"q3k1n1/8/4p1p1/2n2p2/p6r/Pp2P3/1PP1R3/R1B2K2 b - - 3 1","t":"mate2","l":[[0,63,0],[61,53,0],[26,36,0]]},{"f":"6R1/4P3/7k/8/1pB5/6p1/1n6/K7 w - - 5 1","t":"mate2","l":[[12,4,5],[49,32,0],[4,22,0]]},{"f":"6R1/4P3/B6k/8/1p6/6p1/8/K2n4 w - - 7 1","t":"mate2","l":[[12,4,5],[33,41,0],[4,22,0]]},{"f":"8/rRp5/2pk4/p5p1/8/2pbP3/P7/2K5 b - - 3 1","t":"mate2","l":[[8,9,0],[48,32,0],[9,57,0]]},{"f":"5k2/N7/8/3KP3/P1P3R1/8/2B3N1/8 w - - 1 1","t":"mate2","l":[[27,20,0],[5,4,0],[38,6,0]]},{"f":"8/N7/P7/1BP1P3/N3K2k/3R4/8/8 w - - 15 1","t":"mate2","l":[[36,29,0],[39,31,0],[43,47,0]]},{"f":"2r1kb2/1p2ppp1/2p4R/p7/P1n5/3q1P2/4N3/2K2B2 b - - 2 1","t":"mate2","l":[[43,51,0],[58,57,0],[51,49,0]]},{"f":"4k1r1/p6p/1p6/2r5/5P1P/4P3/8/1N5K b - - 2 1","t":"mate2","l":[[26,31,0],[37,29,0],[31,39,0]]},{"f":"6k1/8/2P5/7R/8/7P/2K5/1R6 w - - 7 1","t":"mate2","l":[[57,9,0],[6,5,0],[31,7,0]]},{"f":"3k4/8/8/7R/6B1/7P/8/1KR5 w - - 9 1","t":"mate2","l":[[31,15,0],[3,4,0],[58,2,0]]},{"f":"2k1B3/8/8/RR6/8/7P/K7/8 w - - 27 1","t":"mate2","l":[[24,8,0],[2,3,0],[25,1,0]]},{"f":"8/4rp2/1b6/5p2/4knp1/8/8/4K3 b - - 5 1","t":"mate2","l":[[12,11,0],[60,61,0],[11,59,0]]},{"f":"2b1k2r/3p1p2/1p4p1/1K1Pq3/5B2/8/4PP2/n7 b - - 0 1","t":"mate2","l":[[28,49,0],[25,34,0],[2,16,0]]},{"f":"2q2k2/5p2/2P1p3/8/1p2r3/7p/4P2P/5K1n b - - 0 1","t":"mate2","l":[[2,16,0],[61,60,0],[16,52,0]]},{"f":"2k5/8/2N3B1/1Pp3R1/8/2P1K3/7R/8 w - - 3 1","t":"mate2","l":[[55,15,0],[26,34,0],[22,29,0]]},{"f":"7R/1P3k2/8/8/5KR1/2P5/8/8 w - - 5 1","t":"mate2","l":[[37,28,0],[13,12,0],[38,14,0]]},{"f":"5k2/1P6/8/8/5KR1/2P4R/8/8 w - - 7 1","t":"mate2","l":[[47,15,0],[5,4,0],[9,1,5]]},{"f":"1B6/8/8/p7/5P2/P2K3k/8/R5Q1 w - - 5 1","t":"mate2","l":[[56,48,0],[47,39,0],[48,55,0]]},{"f":"8/2p3n1/p5kb/P5B1/6q1/3r4/5K2/3b4 b - - 2 1","t":"mate2","l":[[38,46,0],[53,61,0],[43,45,0]]},{"f":"4n3/2p5/p5k1/q7/6b1/3rb1K1/8/8 b - - 7 1","t":"mate2","l":[[24,31,0],[46,54,0],[31,47,0]]},{"f":"7k/2p5/p2n3b/q7/8/8/7K/1r6 b - - 32 1","t":"mate2","l":[[24,30,0],[55,47,0],[57,63,0]]},{"f":"7k/2p5/3n3b/p7/5q2/7K/8/5r2 b - - 3 1","t":"mate2","l":[[37,45,0],[47,39,0],[19,29,0]]}];
+
+const PUZZLE_THEME_AR = { mate1: 'كش مات في نقلة', mate2: 'كش مات في نقلتين', fork: 'شوكة', win: 'كسب مادة' };
+const PUZZLE_LEVEL_AR = { mate1: 1, fork: 2, win: 2, mate2: 3 };
+
+/* فهرس لغز اليوم من تاريخ UTC — ثابت طوال اليوم */
+function dailyPuzzleIndex(dateStr) {
+  let h = 0;
+  for (let i = 0; i < dateStr.length; i++) h = (h * 31 + dateStr.charCodeAt(i)) >>> 0;
+  return h % PUZZLES.length;
+}
+
+</script>
+<script>
+/* ============================================================
    واجهة اللعبة — عرض سلس بلا أي اهتزاز:
    • قطع دائمة تتحرك بـ transform فقط (تسريع عتادي، صفر reflow)
    • لا إعادة بناء للوحة عند كل نقلة — فقط تحديث تظليلات
@@ -1592,12 +2211,28 @@ function perft(st, depth) {
     flipped: false,
     selected: -1,
     thinking: false,
-    id: 0
+    id: 0,
+    viewOnly: false,       /* true أثناء تصفح النقلات السابقة */
+    timeCtl: null,         /* {base, inc} أو null */
+    timeout: false,        /* انتهت المباراة بالوقت */
+    showDots: true,        /* نقاط النقلات القانونية */
+    showCoords: true       /* إحداثيات اللوح */
   };
   let pendingPromo = null;
   const squares = [];
   const pieceEls = new Map();  /* رقم المربع -> عنصر القطعة الدائم */
   const lastScores = { '1': 0, '-1': 0 };
+
+  /* ---------- الخطاطيف: تسمح لملف الميزات بالتفاعل دون تعديل المنطق ---------- */
+  const HOOKS = { move: [], over: [], new: [], render: [] };
+  function hook(name, fn) { if (HOOKS[name]) HOOKS[name].push(fn); }
+  function fire(name, a, b, c) {
+    const list = HOOKS[name];
+    if (!list) return;
+    for (const fn of list) {
+      try { fn(a, b, c); } catch (e) { console.error('hook ' + name, e); }
+    }
+  }
 
   /* ---------- الأصوات (WebAudio بدون ملفات خارجية) ---------- */
   let audioCtx = null;
@@ -1737,6 +2372,11 @@ function perft(st, depth) {
     onSquareClick(G.flipped ? 63 - d : d);
   });
 
+  /* إحداثيات اللوح — إظهار/إخفاء عبر صنف على حاوية الإطار */
+  function applyCoordsVisibility() {
+    document.querySelector('.board-col').classList.toggle('no-coords', !G.showCoords);
+  }
+
   /* ---------- عناصر القطع الدائمة ---------- */
   function dispOf(sq) { return G.flipped ? 63 - sq : sq; }
 
@@ -1835,8 +2475,9 @@ function perft(st, depth) {
       el.classList.toggle('sel', sq === G.selected);
       el.classList.toggle('last', !!last && (sq === last.from || sq === last.to));
       el.classList.toggle('check', inCheck && sq === checkSq);
-      el.classList.toggle('dot', targets.get(sq) === 'dot');
-      el.classList.toggle('ring', targets.get(sq) === 'ring');
+      const tg = targets.get(sq);
+      el.classList.toggle('dot', G.showDots && tg === 'dot');
+      el.classList.toggle('ring', G.showDots && tg === 'ring');
     }
   }
 
@@ -1864,7 +2505,8 @@ function perft(st, depth) {
       '<span class="pb-caps">' + glyphs + '</span>' +
       (adv > 0 ? '<span class="pb-adv">+' + adv + '</span>' : '') +
       '<span class="pb-score" data-color="' + color + '"><span class="sc-label">نقاط</span>' +
-      '<span class="sc-num">' + scoreOf(color) + '</span></span>';
+      '<span class="sc-num">' + scoreOf(color) + '</span></span>' +
+      (G.timeCtl ? '<span class="pb-clock" data-color="' + color + '"><span class="clk">--:--</span></span>' : '');
     el.classList.toggle('active', !g.over && g.state.turn === color);
     el.classList.toggle('winner', winner);
   }
@@ -1921,8 +2563,8 @@ function perft(st, depth) {
       const isCurrent = i + 2 >= recs.length;
       html += '<div class="mv-row' + (isCurrent ? ' current' : '') + '">' +
         '<span class="mv-n">' + (i / 2 + 1) + '.</span>' +
-        '<span class="mv-s">' + recs[i].san + '</span>' +
-        '<span class="mv-s">' + (recs[i + 1] ? recs[i + 1].san : '') + '</span>' +
+        '<span class="mv-s" data-ply="' + (i + 1) + '">' + recs[i].san + '</span>' +
+        '<span class="mv-s" data-ply="' + (i + 2) + '">' + (recs[i + 1] ? recs[i + 1].san : '') + '</span>' +
         '</div>';
     }
     movesEl.innerHTML = html;
@@ -1930,9 +2572,11 @@ function perft(st, depth) {
   }
 
   function overStatusText() {
+    const t = G.timeout ? '⏱️ انتهى الوقت — ' : '';
     switch (gc.g.result) {
-      case 'white': return '♔ كش مات — فاز الأبيض';
-      case 'black': return '♚ كش مات — فاز الأسود';
+      case 'white': return t + '♔ فاز الأبيض';
+      case 'black': return t + '♚ فاز الأسود';
+      case 'timeoutdraw': return '⏱️ تعادل — انتهى الوقت مع نقص القطع';
       case 'stalemate': return '🤝 تعادل — طريق مسدود';
       case 'insufficient': return '🤝 تعادل — نقص القطع';
       case 'threefold': return '🤝 تعادل — تكرار ثلاثي';
@@ -1981,6 +2625,8 @@ function perft(st, depth) {
     renderMoves();
     updateStatus();
     updateButtons();
+    applyCoordsVisibility();
+    fire('render');
   }
 
   /* ---------- الرسائل التشجيعية ---------- */
@@ -2038,8 +2684,10 @@ function perft(st, depth) {
 
     if (sc.pts) floatScore(m.piece > 0 ? 1 : -1, sc.pts);
     toastFor(sc.ev);
+    fire('move', m, res, sc);
 
     if (res.over) {
+      fire('over', res);
       const id = G.id;
       setTimeout(() => { if (id === G.id && gc.g.over) showOverModal(); }, 1000);
     } else {
@@ -2068,7 +2716,7 @@ function perft(st, depth) {
   }
 
   function onSquareClick(sq) {
-    if (G.thinking || gc.g.over) return;
+    if (G.thinking || gc.g.over || G.viewOnly) return;
     if (G.mode === 'ai' && gc.g.state.turn !== G.playerColor) return;
     const st = gc.g.state;
     if (G.selected >= 0) {
@@ -2128,17 +2776,22 @@ function perft(st, depth) {
     let icon = '🤝', title = 'تعادل', sub = '';
     if (r === 'white' || r === 'black') {
       const wWhite = r === 'white';
-      icon = wWhite ? '♔' : '♚';
+      icon = G.timeout ? '⏱️' : (wWhite ? '♔' : '♚');
       if (G.mode === 'ai') {
         const pWon = (wWhite && G.playerColor === 1) || (!wWhite && G.playerColor === -1);
-        title = pWon ? 'أحسنت، لقد فزت! 🎉' : 'فاز الكمبيوتر 🤖';
-        sub = pWon ? 'كش مات — فوز رائع!' : 'كش مات — لا بأس، جرّب مرة أخرى!';
+        title = G.timeout
+          ? (pWon ? 'انتهى وقت الخصم — فزت! ⏱️' : 'انتهى وقتك — فاز الكمبيوتر')
+          : (pWon ? 'أحسنت، لقد فزت! 🎉' : 'فاز الكمبيوتر 🤖');
+        sub = G.timeout ? 'خسر الخصم بالنفاد وقته' : 'كش مات';
       } else {
-        title = wWhite ? 'فاز اللاعب الأبيض!' : 'فاز اللاعب الأسود!';
-        sub = 'انتهت اللعبة بالكش مات';
+        title = G.timeout
+          ? (wWhite ? 'فاز الأبيض بالوقت!' : 'فاز الأسود بالوقت!')
+          : (wWhite ? 'فاز اللاعب الأبيض!' : 'فاز اللاعب الأسود!');
+        sub = G.timeout ? 'نفد وقت الخصم' : 'انتهت اللعبة بالكش مات';
       }
     } else {
       sub = {
+        timeoutdraw: 'نفد الوقت لكن القطع لا تكفي للكش مات',
         stalemate: 'طريق مسدود — لا توجد نقلة قانونية للخصم',
         insufficient: 'القطع المتبقية لا تكفي للوصول إلى كش مات',
         threefold: 'تكرر الوضع نفسه ثلاث مرات',
@@ -2166,6 +2819,22 @@ function perft(st, depth) {
       '<span class="osc-val">' + sB + '</span></div>';
 
     overModal.classList.remove('hidden');
+  }
+
+  /* إنهاء المباراة بنفاد الوقت (يستدعيه منظّم المؤقت في الميزات) */
+  function endByTime(flagged) {
+    if (gc.g.over) return;
+    gc.g.over = true;
+    G.timeout = true;
+    if (insufficientMaterial(gc.g.state.board)) {
+      gc.g.result = 'timeoutdraw';
+    } else {
+      gc.g.result = flagged === 1 ? 'black' : 'white';
+    }
+    playEndSound();
+    renderAll();
+    fire('over', { result: gc.g.result, byTime: true });
+    showOverModal();
   }
 
   function goSetup() {
@@ -2260,6 +2929,7 @@ function perft(st, depth) {
     rebuildPieces();
     renderAll();
     savePrefs();
+    fire('new');
     maybeAiMove();
   }
 
@@ -2283,14 +2953,1299 @@ function perft(st, depth) {
   rebuildPieces();
   renderAll();
 
-  /* مقبض للفحص الآلي */
+  /* مقبض للفحص الآلي ولملف الميزات */
   window.__CHESS__ = {
     gc: gc, G: G,
     click: onSquareClick,
     commit: commitMove,
     render: renderAll,
     rebuild: rebuildPieces,
-    pieceAt: sq => pieceEls.get(sq)
+    pieceAt: sq => pieceEls.get(sq),
+    hook: hook,
+    showOver: showOverModal,
+    endByTime: endByTime,
+    SFX: SFX,
+    ensureAudio: ensureAudio
+  };
+})();
+
+</script>
+<script>
+/* ============================================================
+   ميزات الإصدار الثاني — تعمل فوق واجهة اللعبة عبر الخطاطيف:
+   • مؤقت المباراة (بليتز/سريع) مع ساعة لكل لاعب
+   • شريط التقييم الحي + زر تلميح بسهم أفضل نقلة
+   • تنقل سجل النقلات (تصفح المواقف السابقة)
+   • مراجعة المباراة: تصنيف النقلات + الدقة + منحنى التفوق
+   • وضع الألغاز (179 لغزاً مُتحققاً) + لغز اليوم + سلاسل
+   • إنجازات وإحصائيات محفوظة محلياً + ثيمات لوح + إعدادات
+   ============================================================ */
+(function () {
+  'use strict';
+
+  const C = window.__CHESS__;
+  const gc = C.gc;
+  const G = C.G;
+  const $ = s => document.querySelector(s);
+  const $$ = s => document.querySelectorAll(s);
+
+  /* رموز القطع (مكررة محلياً — نظيرها داخل نطاق الواجهة) */
+  const GLYPH = { 1: '♟', 2: '♞', 3: '♝', 4: '♜', 5: '♛', 6: '♚' };
+
+  /* ============================================================
+     1) تفضيلات الميزات (مفتاح مستقل حتى لا تتعارض مع تفضيلات الواجهة)
+     ============================================================ */
+  const PREF_KEY = 'chess-prefs2';
+  const prefs = {
+    time: 'none', board: 'classic', eval: true, dots: true, coords: true
+  };
+  function loadPrefs2() {
+    try {
+      const p = JSON.parse(localStorage.getItem(PREF_KEY) || 'null');
+      if (p) {
+        if (typeof p.time === 'string') prefs.time = p.time;
+        if (typeof p.board === 'string') prefs.board = p.board;
+        if (typeof p.eval === 'boolean') prefs.eval = p.eval;
+        if (typeof p.dots === 'boolean') prefs.dots = p.dots;
+        if (typeof p.coords === 'boolean') prefs.coords = p.coords;
+      }
+    } catch (e) { }
+  }
+  function savePrefs2() {
+    try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch (e) { }
+  }
+  loadPrefs2();
+  G.showDots = prefs.dots;
+  G.showCoords = prefs.coords;
+  document.body.dataset.board = prefs.board;
+
+  function applyTimePref() {
+    if (prefs.time === 'none') G.timeCtl = null;
+    else {
+      const i = prefs.time.indexOf('+');
+      G.timeCtl = { base: (+prefs.time.slice(0, i)) * 1000, inc: (+prefs.time.slice(i + 1)) * 1000 };
+    }
+  }
+
+  /* ============================================================
+     2) نافذة الإعدادات (التروس)
+     ============================================================ */
+  const gearBtn = $('#btn-gear');
+  const settingsPop = $('#settings-pop');
+
+  function closePop() { settingsPop.classList.add('hidden'); }
+  gearBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    settingsPop.classList.toggle('hidden');
+    C.SFX.select();
+  });
+  settingsPop.addEventListener('click', e => e.stopPropagation());
+  document.addEventListener('click', e => {
+    if (!settingsPop.classList.contains('hidden') && !e.target.closest('.gear-wrap')) closePop();
+  });
+
+  function bindSwitch(id, key, onChange) {
+    const btn = $(id);
+    btn.classList.toggle('on', !!prefs[key]);
+    btn.addEventListener('click', () => {
+      prefs[key] = !prefs[key];
+      btn.classList.toggle('on', prefs[key]);
+      savePrefs2();
+      onChange(prefs[key]);
+      C.SFX.select();
+    });
+  }
+  bindSwitch('#set-eval', 'eval', on => {
+    syncEvalVisibility();
+    if (!on) hideEval();
+    else scheduleEval();
+  });
+  bindSwitch('#set-dots', 'dots', on => { G.showDots = on; C.render(); });
+  bindSwitch('#set-coords', 'coords', on => { G.showCoords = on; C.render(); });
+
+  $$('#board-themes .swatch').forEach(sw => {
+    sw.classList.toggle('selected', sw.dataset.board === prefs.board);
+    sw.addEventListener('click', () => {
+      prefs.board = sw.dataset.board;
+      document.body.dataset.board = prefs.board;
+      $$('#board-themes .swatch').forEach(x => x.classList.toggle('selected', x === sw));
+      savePrefs2();
+      C.SFX.select();
+    });
+  });
+
+  /* صف اختيار الوقت في شاشة البداية */
+  function syncTimeRow() {
+    $$('#time-row .opt').forEach(b => b.classList.toggle('selected', b.dataset.time === prefs.time));
+  }
+  syncTimeRow();
+  $$('#time-row .opt').forEach(b => {
+    b.addEventListener('click', () => {
+      prefs.time = b.dataset.time;
+      syncTimeRow();
+      savePrefs2();
+      applyTimePref();
+      C.SFX.select();
+    });
+  });
+  /* مرحلة الالتقاط: تُنفَّذ قبل مستمع الواجهة حتى يقرأ startGame الوقت الصحيح */
+  $('#start-btn').addEventListener('click', () => { applyTimePref(); }, true);
+
+  /* ============================================================
+     3) المؤقت
+     ============================================================ */
+  const T = {
+    clocks: null,      /* {1: ms, -1: ms} */
+    last: 0,
+    running: false,
+    recorded: false    /* منع تسجيل النتيجة مرتين للمباراة نفسها */
+  };
+
+  function fmtClock(ms) {
+    ms = Math.max(0, ms);
+    const s = Math.ceil(ms / 1000);
+    const m = (s / 60) | 0;
+    const r = s % 60;
+    if (m >= 60) {
+      const h = (m / 60) | 0;
+      return h + ':' + String(m % 60).padStart(2, '0') + ':' + String(r).padStart(2, '0');
+    }
+    return m + ':' + String(r).padStart(2, '0');
+  }
+
+  function clockEls() {
+    return {
+      '1': document.querySelector('.pb-clock[data-color="1"]'),
+      '-1': document.querySelector('.pb-clock[data-color="-1"]')
+    };
+  }
+
+  function paintClocks() {
+    if (!G.timeCtl || !T.clocks) return;
+    const els = clockEls();
+    for (const col of [1, -1]) {
+      const el = els[String(col)];
+      if (!el) continue;
+      el.querySelector('.clk').textContent = fmtClock(T.clocks[col]);
+      const active = !gc.g.over && !G.viewOnly && gc.g.state.turn === col;
+      el.classList.toggle('active', active);
+      el.classList.toggle('low', active && T.clocks[col] < 20000);
+    }
+  }
+
+  function tickTimer() {
+    if (!T.running || !G.timeCtl || !T.clocks) return;
+    const now = Date.now();
+    const dt = now - T.last;
+    T.last = now;
+    const side = gc.g.state.turn;
+    T.clocks[side] -= dt;
+    if (T.clocks[side] <= 0) {
+      T.clocks[side] = 0;
+      T.running = false;
+      paintClocks();
+      G.id++; /* إلغاء أي رد معلق من الكمبيوتر */
+      C.endByTime(side);
+      return;
+    }
+    paintClocks();
+  }
+  setInterval(tickTimer, 200);
+
+  function initTimer() {
+    if (!G.timeCtl) { T.clocks = null; T.running = false; paintClocks(); return; }
+    T.clocks = { 1: G.timeCtl.base, '-1': G.timeCtl.base };
+    T.last = Date.now();
+    T.running = !gc.g.over;
+    T.recorded = false;
+    paintClocks();
+  }
+
+  C.hook('new', () => { initTimer(); });
+  C.hook('render', () => { paintClocks(); });
+  C.hook('move', m => {
+    if (!G.timeCtl || !T.clocks || gc.g.over) return;
+    const mover = m.piece > 0 ? 1 : -1;
+    T.clocks[mover] += G.timeCtl.inc;
+    T.last = Date.now();
+    paintClocks();
+  });
+  C.hook('over', () => { T.running = false; });
+
+  /* ============================================================
+     4) شريط التقييم الحي
+     ============================================================ */
+  const evalCol = $('#eval-col');
+  const evalFill = $('#eval-fill');
+  const evalTag = $('#eval-tag');
+  let evalTimer = 0;
+
+  function hideEval() { evalFill.style.height = '50%'; evalTag.textContent = '0.0'; }
+
+  function updateEvalNow() {
+    if (!prefs.eval || G.viewOnly || gc.g.over || !gc.g.legal.length) return;
+    const st = gc.g.state;
+    const r = rootSearchTimed(st, 3, 280);
+    if (!r || !r.move) return;
+    let cp = r.score * st.turn; /* منظور الأبيض */
+    let txt;
+    if (Math.abs(r.score) > 90000) {
+      const mateIn = Math.ceil((100000 - Math.abs(r.score)) / 2);
+      txt = (r.score > 0 ? 'مات ' : '-مات ') + mateIn;
+      cp = r.score > 0 ? 1500 : -1500;
+    } else {
+      txt = (cp > 0 ? '+' : '') + (cp / 100).toFixed(1);
+    }
+    const p = 100 / (1 + Math.exp(-cp / 350));
+    evalFill.style.height = p.toFixed(1) + '%';
+    evalTag.textContent = txt;
+  }
+  function scheduleEval() {
+    clearTimeout(evalTimer);
+    evalTimer = setTimeout(updateEvalNow, 80);
+  }
+  function syncEvalVisibility() {
+    evalCol.classList.toggle('on', prefs.eval);
+    document.body.classList.toggle('eval-on', prefs.eval);
+  }
+  syncEvalVisibility();
+  C.hook('render', () => { scheduleEval(); });
+
+  /* ============================================================
+     5) أسهم المساعدة (التلميح والمراجعة)
+     ============================================================ */
+  const arrowLayer = $('#arrow-layer');
+
+  function drawArrow(svg, from, to, color) {
+    const fx = (from & 7) * 12.5 + 6.25, fy = (from >> 3) * 12.5 + 6.25;
+    let tx = (to & 7) * 12.5 + 6.25, ty = (to >> 3) * 12.5 + 6.25;
+    const dx = tx - fx, dy = ty - fy;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    /* قصّ الرأس قبل مركز الهدف */
+    tx -= dx / len * 3.4; ty -= dy / len * 3.4;
+    const ux = dx / len, uy = dy / len;
+    const px = -uy, py = ux;
+    const hx = tx - ux * 3.2, hy = ty - uy * 3.2;
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', fx); line.setAttribute('y1', fy);
+    line.setAttribute('x2', hx); line.setAttribute('y2', hy);
+    line.setAttribute('stroke', color);
+    line.setAttribute('stroke-width', '2.6');
+    line.setAttribute('stroke-linecap', 'round');
+    line.setAttribute('opacity', '.9');
+    const head = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    head.setAttribute('points',
+      tx + ',' + ty + ' ' +
+      (hx + px * 2.1 - ux * 1.6) + ',' + (hy + py * 2.1 - uy * 1.6) + ' ' +
+      (hx - px * 2.1 - ux * 1.6) + ',' + (hy - py * 2.1 - uy * 1.6));
+    head.setAttribute('fill', color);
+    head.setAttribute('opacity', '.9');
+    svg.appendChild(line);
+    svg.appendChild(head);
+  }
+  function clearArrow(svg) { svg.innerHTML = ''; }
+
+  /* زر التلميح */
+  $('#btn-hint').addEventListener('click', () => {
+    if (G.viewOnly || gc.g.over || G.thinking || !gc.g.legal.length) return;
+    C.ensureAudio();
+    C.SFX.select();
+    const r = rootSearchTimed(gc.g.state, 3, 400);
+    if (!r || !r.move) return;
+    clearArrow(arrowLayer);
+    let a = r.move.from, b = r.move.to;
+    if (G.flipped) { a = 63 - a; b = 63 - b; }
+    drawArrow(arrowLayer, a, b, '#2e9e5b');
+    setTimeout(() => clearArrow(arrowLayer), 1700);
+  });
+
+  /* ============================================================
+     6) التنقل في سجل النقلات
+     ============================================================ */
+  const movesEl = $('#moves');
+  const navStart = $('#nav-start'), navPrev = $('#nav-prev'),
+        navNext = $('#nav-next'), navEnd = $('#nav-end');
+  let viewPly = null; /* null = مباشر، رقم = بعد النقلة رقم N */
+
+  function boardAfterPly(p) {
+    if (p >= gc.g.records.length) return gc.g.state.board;
+    return gc.g.history[p].board;
+  }
+
+  function renderViewPosition(p) {
+    const piecesEl = $('#pieces');
+    /* لوحة ثابتة للوضع التاريخي — تُمسح وتُبنى بدون تحويلات حية.
+       خريطة قطع الواجهة تبقى غير مستخدمة حتى exitView يعيد بناءها */
+    piecesEl.innerHTML = '';
+    const b = boardAfterPly(p);
+    for (let sq = 0; sq < 64; sq++) {
+      if (!b[sq]) continue;
+      const el = document.createElement('div');
+      el.className = 'pc';
+      const g = document.createElement('span');
+      g.className = 'piece ' + (b[sq] > 0 ? 'w' : 'b');
+      g.textContent = GLYPH[Math.abs(b[sq])];
+      el.appendChild(g);
+      const d = G.flipped ? 63 - sq : sq;
+      el.style.transform = 'translate(' + (d & 7) * 100 + '%, ' + (d >> 3) * 100 + '%)';
+      piecesEl.appendChild(el);
+    }
+    /* تظليل النقلة المعروضة */
+    const squares = $$('#board .sq');
+    const rec = gc.g.records[p - 1];
+    squares.forEach((el, d) => {
+      const sq = G.flipped ? 63 - d : d;
+      el.classList.toggle('sel', false);
+      el.classList.toggle('dot', false);
+      el.classList.toggle('ring', false);
+      el.classList.toggle('check', false);
+      el.classList.toggle('last', !!rec && (sq === rec.from || sq === rec.to));
+    });
+    /* تمييز النقلة في القائمة */
+    movesEl.querySelectorAll('.mv-s').forEach(s => {
+      s.classList.toggle('viewing', +s.dataset.ply === p);
+    });
+    const row = movesEl.querySelector('.mv-s.viewing');
+    if (row) row.scrollIntoView({ block: 'nearest' });
+  }
+
+  function gotoPly(p) {
+    const n = gc.g.records.length;
+    if (p >= n) { exitView(); return; }
+    if (p < 1) p = 1;
+    viewPly = p;
+    G.viewOnly = true;
+    G.selected = -1;
+    clearArrow(arrowLayer);
+    renderViewPosition(p);
+    /* سطر الحالة */
+    const st = $('#status-sub');
+    st.textContent = 'وضع الاستعراض — النقلة ' + p + ' من ' + n +
+      ' · اضغط ⏭ أو انقر النقلة الأخيرة للعودة إلى اللعب';
+    RV.showAt(p);
+    updateNavButtons();
+  }
+
+  function exitView() {
+    viewPly = null;
+    G.viewOnly = false;
+    clearArrow(arrowLayer);
+    C.rebuild();
+    C.render();
+    RV.showAt(null);
+    updateNavButtons();
+  }
+
+  function updateNavButtons() {
+    const n = gc.g.records.length;
+    const live = viewPly === null;
+    const p = live ? n : viewPly;
+    navStart.disabled = navPrev.disabled = p <= 1;
+    navNext.disabled = navEnd.disabled = live;
+  }
+
+  navStart.addEventListener('click', () => { if (gc.g.records.length) gotoPly(1); });
+  navPrev.addEventListener('click', () => {
+    const p = viewPly === null ? gc.g.records.length : viewPly;
+    gotoPly(p - 1);
+  });
+  navNext.addEventListener('click', () => gotoPly((viewPly || 0) + 1));
+  navEnd.addEventListener('click', exitView);
+
+  movesEl.addEventListener('click', e => {
+    const s = e.target.closest('.mv-s');
+    if (!s || !s.dataset.ply) return;
+    const p = +s.dataset.ply;
+    if (!gc.g.records[s.dataset.ply - 1]) return;
+    if (p >= gc.g.records.length) exitView();
+    else gotoPly(p);
+  });
+
+  document.addEventListener('keydown', e => {
+    if ($('#game-screen').classList.contains('hidden')) return;
+    if (e.key === 'ArrowLeft') navPrev.click();
+    else if (e.key === 'ArrowRight') navNext.click();
+    else if (e.key === 'Home') navStart.click();
+    else if (e.key === 'End') navEnd.click();
+  });
+
+  C.hook('render', () => {
+    if (G.viewOnly && viewPly !== null) {
+      /* أعِد رسم الموقف التاريخي إذا أعادت الواجهة بناء اللوحة */
+      if (viewPly <= gc.g.records.length) renderViewPosition(viewPly);
+      else exitView();
+    }
+    updateNavButtons();
+  });
+  C.hook('move', () => { if (G.viewOnly && viewPly !== null) exitView(); });
+
+  /* ============================================================
+     7) اسم الافتتاحية
+     ============================================================ */
+  const openingEl = $('#opening-name');
+  function refreshOpening() {
+    const sans = gc.g.records.map(r => r.san);
+    const name = sans.length ? detectOpening(sans) : null;
+    if (name) { openingEl.textContent = '♟ ' + name; openingEl.classList.remove('hidden'); }
+    else openingEl.classList.add('hidden');
+  }
+  C.hook('render', refreshOpening);
+
+  /* ============================================================
+     8) الإنجازات والإحصائيات
+     ============================================================ */
+  const ST_KEY = 'chess-stats-v2';
+  let ST = null;
+  function loadStats() {
+    try { ST = JSON.parse(localStorage.getItem(ST_KEY) || 'null'); } catch (e) { ST = null; }
+    if (!ST || typeof ST !== 'object') ST = {};
+    if (!ST.games) ST.games = {};
+    for (const k of ['friend', 'easy', 'medium', 'hard']) {
+      if (!ST.games[k]) ST.games[k] = { n: 0, w: 0, d: 0, l: 0 };
+    }
+    if (!ST.castles) ST.castles = 0;
+    if (!ST.promos) ST.promos = 0;
+    if (!ST.winStreak) ST.winStreak = 0;
+    if (!ST.bestStreak) ST.bestStreak = 0;
+    if (!ST.puzzles) ST.puzzles = { solved: 0, failed: 0, bestStreak: 0, byTheme: {} };
+    if (!ST.puzzles.byTheme) ST.puzzles.byTheme = {};
+    if (!ST.ach) ST.ach = {};
+    if (!ST.winsWith) ST.winsWith = { w: false, b: false };
+    if (!ST.dailyDone) ST.dailyDone = '';
+    if (!ST.reviews) ST.reviews = 0;
+  }
+  function saveStats() { try { localStorage.setItem(ST_KEY, JSON.stringify(ST)); } catch (e) { } }
+  loadStats();
+
+  function totalGames() {
+    let n = 0;
+    for (const k in ST.games) n += ST.games[k].n;
+    return n;
+  }
+  function aiWins() {
+    return ST.games.easy.w + ST.games.medium.w + ST.games.hard.w;
+  }
+
+  const ACHIEVEMENTS = [
+    { id: 'first_game', ic: '🎮', t: 'أول مباراة', d: 'أكمل مباراتك الأولى', test: () => totalGames() >= 1 },
+    { id: 'first_win', ic: '🥇', t: 'أول فوز', d: 'انتصر على الكمبيوتر', test: () => aiWins() >= 1 },
+    { id: 'first_mate', ic: '👑', t: 'صيّاد الملك', d: 'حقق كش مات بنفسك', test: () => (ST.matesGiven || 0) >= 1 },
+    { id: 'hard_win', ic: '😈', t: 'قاهر الصعب', d: 'انتصر على المستوى الصعب', test: () => ST.games.hard.w >= 1 },
+    { id: 'streak3', ic: '🔥', t: 'ثلاثية', d: '3 انتصارات متتالية على الكمبيوتر', test: () => ST.bestStreak >= 3 },
+    { id: 'streak5', ic: '⚡', t: 'سلسلة خارقة', d: '5 انتصارات متتالية على الكمبيوتر', test: () => ST.bestStreak >= 5 },
+    { id: 'castles10', ic: '🏰', t: 'القلعة الحصينة', d: 'بيّت 10 مرات', test: () => ST.castles >= 10 },
+    { id: 'promo5', ic: '👸', t: 'الترقيات', d: 'رقّ 5 بيادق إلى قطع كبرى', test: () => ST.promos >= 5 },
+    { id: 'puzzles25', ic: '🧩', t: 'محلل الألغاز', d: 'حل 25 لغزاً بنجاح', test: () => ST.puzzles.solved >= 25 },
+    { id: 'puzzle_streak5', ic: '🎯', t: 'تركيز فولاذي', d: 'سلسلة 5 ألغاز صحيحة متتالية', test: () => ST.puzzles.bestStreak >= 5 },
+    { id: 'games20', ic: '♟️', t: 'لاعب مخضرم', d: 'أكمل 20 مباراة', test: () => totalGames() >= 20 },
+    { id: 'both_colors', ic: '⚖️', t: 'الوجهان', d: 'انتصر بالقطع البيضاء والسوداء', test: () => ST.winsWith.w && ST.winsWith.b },
+    { id: 'review1', ic: '📊', t: 'دارس المباريات', d: 'راجع مباراة بالتحليل الكامل', test: () => ST.reviews >= 1 },
+    { id: 'daily1', ic: '📅', t: 'مواظب', d: 'حل لغز اليوم', test: () => !!ST.dailyDone }
+  ];
+
+  function checkAchievements() {
+    for (const a of ACHIEVEMENTS) {
+      if (!ST.ach[a.id] && a.test()) {
+        ST.ach[a.id] = true;
+        saveStats();
+        showAchievementToast(a);
+      }
+    }
+  }
+  function showAchievementToast(a) {
+    C.ensureAudio();
+    C.SFX.promote();
+    const layer = $('#game-screen').classList.contains('hidden')
+      ? $('#pt-toast-layer') : $('#toast-layer');
+    const d = document.createElement('div');
+    d.className = 'toast great';
+    d.textContent = '🏅 إنجاز جديد: ' + a.t;
+    layer.appendChild(d);
+    setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 380); }, 2300);
+  }
+
+  /* تسجيل نهاية المباراة */
+  C.hook('over', res => {
+    if (T.recorded) return;
+    T.recorded = true;
+
+    const r = res.result;
+    const isDraw = !(r === 'white' || r === 'black');
+    let key = G.mode === 'friend' ? 'friend' : G.difficulty;
+    const g = ST.games[key];
+    g.n++;
+    if (isDraw) g.d++;
+    else {
+      let playerWon;
+      if (G.mode === 'friend') playerWon = true; /* أحد اللاعبين فاز */
+      else playerWon = (r === 'white' && G.playerColor === 1) || (r === 'black' && G.playerColor === -1);
+      if (G.mode === 'friend') { /* يُحسب فوزاً لأحدهما */ }
+      if (playerWon) {
+        g.w++;
+        if (G.mode === 'ai') {
+          ST.winStreak++;
+          if (ST.winStreak > ST.bestStreak) ST.bestStreak = ST.winStreak;
+          ST.winsWith[G.playerColor === 1 ? 'w' : 'b'] = true;
+          if (!isDraw && r !== 'timeoutdraw') {
+            /* كش مات حققه اللاعب إن كانت النتيجة ليست بالوقت */
+            if (!res.byTime) ST.matesGiven = (ST.matesGiven || 0) + 1;
+          }
+        }
+      } else {
+        g.l++;
+        if (G.mode === 'ai') ST.winStreak = 0;
+      }
+    }
+    saveStats();
+    checkAchievements();
+  });
+
+  C.hook('move', (m, res, sc) => {
+    if (!m) return;
+    if (m.flag === 'castleK' || m.flag === 'castleQ') {
+      ST.castles++;
+      saveStats();
+      checkAchievements();
+    }
+    if (m.promo) {
+      ST.promos++;
+      saveStats();
+      checkAchievements();
+    }
+  });
+
+  /* ============================================================
+     9) مراجعة المباراة
+     ============================================================ */
+  const CLS_AR = {
+    brilliant: 'نقلة رائعة!!', great: 'نقلة عظيمة!', best: 'الأفضل', excellent: 'ممتازة',
+    good: 'جيدة', book: 'نقلة كتابية', inaccuracy: 'غير دقيقة?!', mistake: 'خطأ?', blunder: 'خطأ فادح??'
+  };
+  const CLS_MARK = {
+    brilliant: '!!', great: '!', best: '★', excellent: '✓', good: '·',
+    book: '📖', inaccuracy: '?!', mistake: '?', blunder: '??'
+  };
+
+  const RV = {
+    active: false, data: [], accW: 0, accB: 0, bestArrow: null
+  };
+  const reviewPanel = $('#review-panel');
+
+  function snapshotToState(snap) {
+    return {
+      board: snap.board.slice(),
+      turn: snap.turn,
+      castling: {
+        wk: snap.castling.wk, wq: snap.castling.wq,
+        bk: snap.castling.bk, bq: snap.castling.bq
+      },
+      enPassant: snap.enPassant,
+      halfmove: snap.halfmove
+    };
+  }
+
+  function analyzeGame(onDone) {
+    const recs = gc.g.records;
+    const n = recs.length;
+    const data = [];
+    /* طول الافتتاحية الكتابية: أطول بادئة مطابقة */
+    const sans = recs.map(r => r.san);
+    let bookPlies = 0;
+    for (const pair of OPENINGS) {
+      const parts = pair[0].split(' ');
+      if (sans.length >= parts.length && parts.every((p, i) => sans[i].replace(/[+#]/g, '') === p)) {
+        bookPlies = Math.max(bookPlies, parts.length);
+      }
+    }
+
+    let i = 0;
+    function step() {
+      const t0 = Date.now();
+      while (i < n && Date.now() - t0 < 24) {
+        const rec = recs[i];
+        const before = snapshotToState(gc.g.history[i]);
+        const root = rootSearch(before, 2, true);
+        const mover = before.turn;
+        let delta = 0, evalAfter = 0, bestSan = null, mateLost = false;
+        if (root.move) {
+          const played = root.legal.find(m =>
+            m.from === rec.from && m.to === rec.to && (m.promo || 0) === (rec.promo || 0));
+          let playedScore = root.score;
+          if (played) {
+            const u = makeMove(before, played);
+            playedScore = -negamax(before, 1, -Infinity, Infinity, 1);
+            /* فحص مباشر رخيص: هل مكّنت هذه النقلة الخصمَ من كش مات فوري؟ */
+            let enabledMate = false;
+            for (const om of generateLegalMoves(before)) {
+              if (isMateInOne(before, om)) { enabledMate = true; break; }
+            }
+            if (enabledMate) playedScore = -100000;
+            unmakeMove(before, played, u);
+          }
+          delta = Math.max(0, root.score - playedScore);
+          evalAfter = playedScore * mover;
+          mateLost = playedScore < -90000;
+          bestSan = moveToSan(before, root.move, root.legal);
+        }
+        /* التضحية: قطعة أغلى تُقدَّم على مربع مهدد */
+        let sacrifice = false;
+        if (rec.from !== undefined) {
+          const played = root.legal.find(m => m.from === rec.from && m.to === rec.to);
+          if (played) {
+            const given = VAL[Math.abs(played.piece)];
+            const taken = played.captured ? VAL[Math.abs(played.captured)] : 0;
+            if (given > taken + 100) {
+              const u = makeMove(before, played);
+              sacrifice = isSquareAttacked(before.board, played.to, -mover);
+              unmakeMove(before, played, u);
+            }
+          }
+        }
+        const gap = root.score - root.second;
+        const cls = classifyMove(delta, {
+          isBook: i < bookPlies,
+          mateLost: mateLost,
+          sacrifice: sacrifice,
+          unique: gap >= 120,
+          gap: gap,
+          best: root.score > 50
+        });
+        data.push({
+          cls: cls, delta: delta, evalAfter: evalAfter,
+          bestSan: bestSan, bestMove: root.move ? { from: root.move.from, to: root.move.to } : null
+        });
+        i++;
+      }
+      if (i < n) {
+        $('#rv-accuracy').innerHTML = '<div class="rv-acc-box"><div class="n">…</div><div class="t">جاري التحليل ' + Math.round(i / n * 100) + '%</div></div>';
+        setTimeout(step, 0);
+      } else {
+        finishAnalysis(data);
+        onDone && onDone();
+      }
+    }
+    step();
+  }
+
+  function finishAnalysis(data) {
+    RV.data = data;
+    const dw = [], db = [];
+    gc.g.records.forEach((r, i) => (r.color === 1 ? dw : db).push(data[i].delta));
+    RV.accW = gameAccuracy(dw);
+    RV.accB = gameAccuracy(db);
+    renderAccuracyBoxes();
+    renderGraph();
+    applyBadges();
+    checkAchievements();
+  }
+
+  function renderAccuracyBoxes() {
+    let nW = 'الأبيض', nB = 'الأسود';
+    if (G.mode === 'ai') {
+      nW = G.playerColor === 1 ? 'أنت' : 'الكمبيوتر';
+      nB = G.playerColor === 1 ? 'الكمبيوتر' : 'أنت';
+    }
+    $('#rv-accuracy').innerHTML =
+      '<div class="rv-acc-box"><div class="n">' + RV.accW + '%</div><div class="t">دقة ' + nW + '</div></div>' +
+      '<div class="rv-acc-box"><div class="n">' + RV.accB + '%</div><div class="t">دقة ' + nB + '</div></div>';
+  }
+
+  function renderGraph() {
+    const n = RV.data.length;
+    if (!n) return;
+    const W = 100, H = 120, mid = H / 2;
+    let pts = mid + ',' + (H - 2) + ' ';
+    const dots = [];
+    for (let i = 0; i < n; i++) {
+      const cp = Math.max(-800, Math.min(800, RV.data[i].evalAfter));
+      const x = 2 + (i / Math.max(1, n - 1)) * (W - 4);
+      const y = mid - (cp / 800) * (mid - 6);
+      pts += x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+      const cls = RV.data[i].cls;
+      if (cls === 'blunder' || cls === 'brilliant' || cls === 'great' || cls === 'mistake') {
+        const col = cls === 'blunder' ? '#d84c3c' : cls === 'brilliant' ? '#00a6a6' : cls === 'great' ? '#3d7bd6' : '#e08a3c';
+        dots.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="2.3" fill="' + col + '"><title>النقلة ' + (i + 1) + ': ' + CLS_AR[cls] + '</title></circle>');
+      }
+    }
+    $('#rv-graph').innerHTML =
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' +
+      '<rect x="0" y="0" width="' + W + '" height="' + mid + '" fill="#3a3733"/>' +
+      '<rect x="0" y="' + mid + '" width="' + W + '" height="' + mid + '" fill="#efe9db"/>' +
+      '<line x1="0" y1="' + mid + '" x2="' + W + '" y2="' + mid + '" stroke="rgba(120,120,120,.5)" stroke-width=".5"/>' +
+      '<polygon points="' + pts + ' ' + W + ',' + (H - 2) + ' ' + W + ',' + (H - 2) + '" fill="rgba(46,158,91,.12)" stroke="none"/>' +
+      '<polyline points="' + pts + '" fill="none" stroke="#2e9e5b" stroke-width="1.1"/>' +
+      dots.join('') +
+      '</svg>';
+  }
+
+  function applyBadges() {
+    movesEl.querySelectorAll('.mv-s').forEach(s => {
+      const p = +s.dataset.ply;
+      if (!p || !gc.g.records[p - 1]) return;
+      const d = RV.data[p - 1];
+      if (!d) return;
+      const old = s.querySelector('.mv-cls');
+      if (old) old.remove();
+      const b = document.createElement('span');
+      b.className = 'mv-cls ' + d.cls;
+      b.textContent = CLS_MARK[d.cls] || '';
+      b.title = CLS_AR[d.cls];
+      s.appendChild(b);
+    });
+  }
+
+  RV.showAt = function (ply) {
+    if (!RV.active) return;
+    const info = $('#rv-move-info');
+    if (ply === null || !RV.data.length) { info.textContent = 'استخدم أسهم التنقل لاستعراض النقلات'; return; }
+    const rec = gc.g.records[ply - 1];
+    const d = RV.data[ply - 1];
+    if (!rec || !d) { info.textContent = '—'; return; }
+    const side = rec.color === 1 ? 'الأبيض' : 'الأسود';
+    let txt = '<b>' + (ply) + '.</b> ' + rec.san + ' (' + side + ') — ' + CLS_AR[d.cls];
+    if (d.delta > 60 && d.bestSan) txt += '<br>الأفضل كان: <b>' + d.bestSan + '</b> (فقد ~' + (d.delta / 100).toFixed(1) + ')';
+    info.innerHTML = txt;
+    /* سهم أفضل نقلة في الموقف السابق للنقلة المعروضة */
+    clearArrow(arrowLayer);
+    if (d.bestMove && d.delta > 60) {
+      let a = d.bestMove.from, b = d.bestMove.to;
+      if (G.flipped) { a = 63 - a; b = 63 - b; }
+      drawArrow(arrowLayer, a, b, '#3d7bd6');
+    }
+  };
+
+  function startReview() {
+    if (!gc.g.records.length) return;
+    overModalHide();
+    RV.active = true;
+    ST.reviews++;
+    saveStats();
+    checkAchievements();
+    reviewPanel.classList.remove('hidden');
+    $('#rv-accuracy').innerHTML = '<div class="rv-acc-box"><div class="n">…</div><div class="t">جاري التحليل…</div></div>';
+    analyzeGame(() => {
+      gotoPly(1);
+    });
+  }
+  function exitReview() {
+    RV.active = false;
+    reviewPanel.classList.add('hidden');
+    clearArrow(arrowLayer);
+    exitView();
+  }
+  function overModalHide() { $('#over-modal').classList.add('hidden'); }
+
+  $('#over-review').addEventListener('click', startReview);
+  $('#rv-exit').addEventListener('click', exitReview);
+
+  function keyPly(dir) {
+    if (!RV.active || !RV.data.length) return;
+    const cur = viewPly === null ? gc.g.records.length : viewPly;
+    const isKey = i => {
+      const c = RV.data[i] && RV.data[i].cls;
+      return c === 'blunder' || c === 'brilliant' || c === 'great' || c === 'mistake' || c === 'inaccuracy';
+    };
+    if (dir > 0) {
+      for (let i = cur; i < RV.data.length; i++) { if (isKey(i)) { gotoPly(i + 1); return; } }
+    } else {
+      for (let i = cur - 2; i >= 0; i--) { if (isKey(i)) { gotoPly(i + 1); return; } }
+    }
+  }
+  $('#rv-next-key').addEventListener('click', () => keyPly(1));
+  $('#rv-prev-key').addEventListener('click', () => keyPly(-1));
+
+  C.hook('new', () => {
+    RV.active = false;
+    reviewPanel.classList.add('hidden');
+    viewPly = null;
+  });
+  C.hook('move', () => { if (RV.active) exitReview(); });
+
+  /* ============================================================
+     10) نافذة الإنجازات والإحصائيات
+     ============================================================ */
+  const statsModal = $('#stats-modal');
+  function openStats() { renderStats('ach'); statsModal.classList.remove('hidden'); C.SFX.select(); }
+  $('#btn-stats').addEventListener('click', openStats);
+  $('#stats-close').addEventListener('click', () => statsModal.classList.add('hidden'));
+  statsModal.addEventListener('click', e => { if (e.target === statsModal) statsModal.classList.add('hidden'); });
+  $$('.stats-tabs .tab').forEach(t => {
+    t.addEventListener('click', () => {
+      $$('.stats-tabs .tab').forEach(x => x.classList.toggle('selected', x === t));
+      renderStats(t.dataset.tab);
+      C.SFX.select();
+    });
+  });
+
+  function renderStats(tab) {
+    const body = $('#stats-body');
+    if (tab === 'ach') {
+      let html = '<div class="ach-grid">';
+      for (const a of ACHIEVEMENTS) {
+        const un = !!ST.ach[a.id];
+        html += '<div class="ach ' + (un ? 'unlocked' : 'locked') + '">' +
+          '<div class="a-ic">' + (un ? a.ic : '🔒') + '</div>' +
+          '<div class="a-t">' + a.t + '</div>' +
+          '<div class="a-d">' + a.d + '</div></div>';
+      }
+      html += '</div>';
+      body.innerHTML = html;
+      return;
+    }
+    /* الإحصائيات */
+    const g = ST.games;
+    const tot = totalGames();
+    const aiw = aiWins();
+    const pz = ST.puzzles;
+    let html = '';
+    html += '<div class="st-sec">المباريات</div>';
+    html += line('إجمالي المباريات', tot);
+    html += line('ضد صديق', g.friend.n + ' (فوز ' + g.friend.w + ')');
+    html += line('سهل', g.easy.n + ' (فوز ' + g.easy.w + ')');
+    html += line('متوسط', g.medium.n + ' (فوز ' + g.medium.w + ')');
+    html += line('صعب', g.hard.n + ' (فوز ' + g.hard.w + ')');
+    html += line('انتصارات على الكمبيوتر', aiw);
+    html += line('أطول سلسلة انتصارات', ST.bestStreak);
+    html += '<div class="st-sec">الأداء</div>';
+    html += line('مرات التبييت', ST.castles);
+    html += line('الترقيات', ST.promos);
+    html += line('كش مات حققته', ST.matesGiven || 0);
+    html += line('مباريات راجعتها', ST.reviews);
+    html += '<div class="st-sec">الألغاز</div>';
+    html += line('ألغاز محلولة', pz.solved);
+    html += line('محاولات خاطئة', pz.failed);
+    html += line('أفضل سلسلة ألغاز', pz.bestStreak);
+    for (const t in pz.byTheme) {
+      html += line(PUZZLE_THEME_AR[t] || t, pz.byTheme[t]);
+    }
+    body.innerHTML = html;
+
+    function line(k, v) {
+      return '<div class="st-row-line"><span>' + k + '</span><span class="v">' + v + '</span></div>';
+    }
+  }
+
+  /* ============================================================
+     11) وضع الألغاز
+     ============================================================ */
+  const puzzleScreen = $('#puzzle-screen');
+  const pboard = $('#pboard');
+  const ppiecesEl = $('#ppieces');
+  const parrowLayer = $('#parrow-layer');
+  const ptToast = $('#pt-toast-layer');
+  const pzStatus = $('#pz-status');
+  const pzSquares = [];
+
+  const PZ = {
+    cat: 'daily', list: [], idx: 0, st: null, line: [], step: 0,
+    solved: false, failed: false, tries: 0, sel: -1,
+    streak: 0, pieces: new Map(), flipped: false, daily: false
+  };
+
+  /* بناء لوحة الألغاز مرة واحدة */
+  (function buildPBoard() {
+    for (let d = 0; d < 64; d++) {
+      const el = document.createElement('div');
+      const r = d >> 3, c = d & 7;
+      el.className = 'sq ' + ((r + c) % 2 === 0 ? 'l' : 'd');
+      el.dataset.d = d;
+      if (r === 7) {
+        const s = document.createElement('span');
+        s.className = 'coord cf'; s.textContent = FILES[c];
+        el.appendChild(s);
+      }
+      if (c === 0) {
+        const s = document.createElement('span');
+        s.className = 'coord cr'; s.textContent = String(8 - r);
+        el.appendChild(s);
+      }
+      pboard.appendChild(el);
+      pzSquares.push(el);
+    }
+  })();
+
+  function pzToast(txt, cls) {
+    ptToast.innerHTML = '';
+    const d = document.createElement('div');
+    d.className = 'toast ' + (cls || 'info');
+    d.textContent = txt;
+    ptToast.appendChild(d);
+    setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 380); }, 1400);
+  }
+
+  function pzDisp(sq) { return PZ.flipped ? 63 - sq : sq; }
+  function pzPlace(el, sq) {
+    const d = pzDisp(sq);
+    el.style.transform = 'translate(' + (d & 7) * 100 + '%, ' + (d >> 3) * 100 + '%)';
+  }
+  function pzMk(p, sq) {
+    const el = document.createElement('div');
+    el.className = 'pc';
+    const g = document.createElement('span');
+    g.className = 'piece ' + (p > 0 ? 'w' : 'b');
+    g.textContent = GLYPH[Math.abs(p)];
+    el.appendChild(g);
+    pzPlace(el, sq);
+    ppiecesEl.appendChild(el);
+    return el;
+  }
+  function pzRebuild() {
+    ppiecesEl.innerHTML = '';
+    PZ.pieces.clear();
+    if (!PZ.st) return;
+    for (let sq = 0; sq < 64; sq++) {
+      if (PZ.st.board[sq]) PZ.pieces.set(sq, pzMk(PZ.st.board[sq], sq));
+    }
+  }
+  function pzAnimate(m) {
+    const el = PZ.pieces.get(m.from);
+    if (!el) { pzRebuild(); return; }
+    PZ.pieces.delete(m.from);
+    const mover = m.piece > 0 ? 1 : -1;
+    let capSq = -1;
+    if (m.flag === 'ep') capSq = m.to + (mover > 0 ? 8 : -8);
+    else if (m.captured) capSq = m.to;
+    if (capSq >= 0) {
+      const capEl = PZ.pieces.get(capSq);
+      if (capEl) {
+        PZ.pieces.delete(capSq);
+        capEl.classList.add('dying');
+        setTimeout(() => capEl.remove(), 380);
+      }
+    }
+    PZ.pieces.set(m.to, el);
+    pzPlace(el, m.to);
+    if (m.flag === 'castleK' || m.flag === 'castleQ') {
+      const k = m.flag === 'castleK';
+      let rf, rt;
+      if (mover > 0) { rf = k ? 63 : 56; rt = k ? 61 : 59; }
+      else { rf = k ? 7 : 0; rt = k ? 5 : 3; }
+      const rk = PZ.pieces.get(rf);
+      if (rk) { PZ.pieces.delete(rf); PZ.pieces.set(rt, rk); pzPlace(rk, rt); }
+    }
+  }
+
+  function pzSetStatus(html, cls) {
+    pzStatus.innerHTML = html;
+    pzStatus.className = 'pz-status' + (cls ? ' ' + cls : '');
+  }
+
+  function puzzleList() {
+    if (PZ.cat === 'daily') return PUZZLES;
+    if (PZ.cat === 'all') return PUZZLES;
+    return PUZZLES.filter(p => p.t === PZ.cat);
+  }
+
+  function solvedIds() {
+    try { return JSON.parse(localStorage.getItem('chess-pz-solved') || '[]'); } catch (e) { return []; }
+  }
+  function markSolved(id) {
+    const arr = solvedIds();
+    arr.push(id);
+    try { localStorage.setItem('chess-pz-solved', JSON.stringify(arr.slice(-400))); } catch (e) { }
+  }
+
+  function todayUTC() {
+    const d = new Date();
+    return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
+  }
+
+  function loadPuzzle() {
+    clearArrow(parrowLayer);
+    PZ.sel = -1;
+    PZ.solved = false;
+    PZ.failed = false;
+    PZ.tries = 0;
+    PZ.step = 0;
+    const list = puzzleList();
+    if (!list.length) return;
+    let p;
+    if (PZ.cat === 'daily') {
+      PZ.daily = true;
+      p = PUZZLES[dailyPuzzleIndex(todayUTC())];
+      const done = ST.dailyDone === todayUTC() && solvedIds().indexOf(p.f) >= 0;
+      if (done) PZ.solved = true; /* إظهار كمحلول مع إمكانية إعادة */
+    } else {
+      PZ.daily = false;
+      const solved = solvedIds();
+      const fresh = list.filter(x => solved.indexOf(x.f) < 0);
+      const pool = fresh.length ? fresh : list;
+      p = pool[(Math.random() * pool.length) | 0];
+    }
+    PZ.st = fenToState(p.f);
+    PZ.line = p.l;
+    PZ.flipped = PZ.st.turn === -1;
+    PZ.puzzleRef = p;
+    pzRebuild();
+    pzRenderBoard();
+    const side = PZ.st.turn > 0 ? 'الأبيض' : 'الأسود';
+    const theme = PUZZLE_THEME_AR[p.t];
+    if (PZ.solved) {
+      pzSetStatus('📅 لغز اليوم (حُلّ سابقاً ✓) — ' + theme + ' · العب ' + side + ' وابحث عن أفضل نقلة', '');
+    } else {
+      pzSetStatus((PZ.daily ? '📅 لغز اليوم — ' : '') + theme + ' · العب ' + side + ' وابحث عن أفضل نقلة');
+    }
+    updatePzChips();
+    updatePzProgress();
+    updatePzButtons();
+  }
+
+  function pzRenderBoard() {
+    if (!PZ.st) return;
+    const st = PZ.st;
+    const checkSq = findKingSq(st.board, st.turn);
+    const inCheck = checkSq >= 0 && isSquareAttacked(st.board, checkSq, -st.turn);
+    const targets = new Map();
+    if (PZ.sel >= 0 && !PZ.solved) {
+      for (const m of generateLegalMoves(st)) {
+        if (m.from === PZ.sel) targets.set(m.to, (m.captured || m.flag === 'ep') ? 'ring' : 'dot');
+      }
+    }
+    for (let d = 0; d < 64; d++) {
+      const sq = PZ.flipped ? 63 - d : d;
+      const el = pzSquares[d];
+      el.classList.toggle('sel', sq === PZ.sel);
+      const last = PZ.lastMove;
+      el.classList.toggle('last', !!last && (sq === last.from || sq === last.to));
+      el.classList.toggle('check', inCheck && sq === checkSq);
+      el.classList.toggle('dot', targets.get(sq) === 'dot');
+      el.classList.toggle('ring', targets.get(sq) === 'ring');
+    }
+  }
+
+  pboard.addEventListener('click', e => {
+    const el = e.target.closest('.sq');
+    if (!el || !PZ.st || PZ.solved) return;
+    const d = +el.dataset.d;
+    const sq = PZ.flipped ? 63 - d : d;
+    pzClick(sq);
+  });
+
+  function pzClick(sq) {
+    if (PZ.solved) return;
+    const st = PZ.st;
+    if (PZ.sel >= 0) {
+      const cands = generateLegalMoves(st).filter(m => m.from === PZ.sel && m.to === sq);
+      if (cands.length) {
+        /* نقلات ترقية متعددة: اختر الوزير تلقائياً في الألغاز */
+        const mv = cands.find(m => m.promo === 5) || cands[0];
+        pzTryMove(mv);
+        return;
+      }
+    }
+    const p = st.board[sq];
+    if (p && (p > 0) === (st.turn > 0)) {
+      PZ.sel = (PZ.sel === sq) ? -1 : sq;
+      C.SFX.select();
+    } else {
+      PZ.sel = -1;
+    }
+    pzRenderBoard();
+  }
+
+  function moveMatches(m, tr) {
+    return m.from === tr[0] && m.to === tr[1] && (m.promo || 0) === tr[2];
+  }
+
+  function pzTryMove(mv) {
+    const want = PZ.line[PZ.step];
+    if (!want || !moveMatches(mv, want)) {
+      /* نقلة خاطئة */
+      PZ.tries++;
+      if (!PZ.failed) {
+        PZ.failed = true;
+        PZ.streak = 0;
+        updatePzChips();
+      }
+      const frame = pboard.closest('.board-frame');
+      frame.classList.remove('pz-wrong');
+      void frame.offsetWidth;
+      frame.classList.add('pz-wrong');
+      C.SFX.lose();
+      pzSetStatus(PZ.tries >= 2
+        ? 'ليست النقلة المطلوبة · جرّب مجدداً أو اضغط "تلميح"'
+        : 'ليست النقلة المطلوبة — حاول مرة أخرى', 'bad');
+      PZ.sel = -1;
+      pzRenderBoard();
+      return;
+    }
+    /* نقلة صحيحة */
+    PZ.sel = -1;
+    PZ.lastMove = { from: mv.from, to: mv.to };
+    const u = makeMove(PZ.st, mv);
+    PZ.step++;
+    if (mv.captured || mv.flag === 'ep') C.SFX.capture();
+    else C.SFX.move();
+    pzAnimate(mv);
+    pzRenderBoard();
+
+    const isLast = PZ.step >= PZ.line.length;
+    if (isLast) {
+      PZ.solved = true;
+      pzPuzzleSolved();
+    } else {
+      /* رد الخصم من خط الحل */
+      setTimeout(() => {
+        if (!PZ.st) return;
+        const oppWant = PZ.line[PZ.step];
+        const opp = generateLegalMoves(PZ.st).find(m => moveMatches(m, oppWant));
+        if (opp) {
+          const u2 = makeMove(PZ.st, opp);
+          PZ.lastMove = { from: opp.from, to: opp.to };
+          PZ.step++;
+          pzAnimate(opp);
+          pzRenderBoard();
+        }
+        pzSetStatus('إحسنت! أكمل الحل…', 'good');
+      }, 560);
+    }
+  }
+
+  function pzPuzzleSolved() {
+    C.ensureAudio();
+    C.SFX.win();
+    pzSetStatus('🎉 أحسنت — حل صحيح!', 'good');
+    pzToast('أحسنت! 🎉', 'mate');
+    if (!PZ.failed || PZ.daily) {
+      /* لغز اليوم يُحسب مرة واحدة */
+    }
+    if (!PZ.failed) {
+      PZ.streak++;
+      ST.puzzles.solved++;
+      if (PZ.streak > ST.puzzles.bestStreak) ST.puzzles.bestStreak = PZ.streak;
+      const t = PZ.puzzleRef.t;
+      ST.puzzles.byTheme[t] = (ST.puzzles.byTheme[t] || 0) + 1;
+      markSolved(PZ.puzzleRef.f);
+      if (PZ.daily && ST.dailyDone !== todayUTC()) {
+        ST.dailyDone = todayUTC();
+      }
+      saveStats();
+      checkAchievements();
+    } else {
+      ST.puzzles.failed++;
+      saveStats();
+    }
+    updatePzChips();
+    updatePzProgress();
+    updatePzButtons();
+  }
+
+  function updatePzChips() {
+    $('#pz-streak').innerHTML = '🔥 <b>' + PZ.streak + '</b>';
+    $('#pz-solved').innerHTML = '✓ <b>' + ST.puzzles.solved + '</b>';
+  }
+
+  function updatePzProgress() {
+    const list = puzzleList();
+    const solved = solvedIds();
+    const n = list.filter(p => solved.indexOf(p.f) >= 0).length;
+    const pct = list.length ? Math.round(n / list.length * 100) : 0;
+    let label;
+    if (PZ.cat === 'daily') label = 'لغز اليوم يتغير كل يوم UTC';
+    else label = 'حللت ' + n + ' من ' + list.length + ' لغزاً في هذه الفئة';
+    $('#pz-progress').innerHTML = PZ.cat === 'daily'
+      ? '<div style="line-height:1.9">' + label + '<br>أفضل سلسلة: <b>' + ST.puzzles.bestStreak + '</b> · الإجمالي: <b>' + ST.puzzles.solved + '</b></div>'
+      : label + '<div class="bar"><div style="width:' + pct + '%"></div></div>' +
+        '<div style="font-size:.75rem;color:var(--muted);margin-top:4px">أفضل سلسلة: ' + ST.puzzles.bestStreak + ' · الإجمالي: ' + ST.puzzles.solved + '</div>';
+  }
+
+  function updatePzButtons() {
+    $('#btn-pz-next').disabled = false;
+    $('#btn-pz-hint').disabled = PZ.solved;
+    $('#btn-pz-retry').disabled = false;
+  }
+
+  $('#btn-pz-hint').addEventListener('click', () => {
+    if (!PZ.st || PZ.solved) return;
+    C.SFX.select();
+    const want = PZ.line[PZ.step];
+    if (!want) return;
+    if (PZ.tries >= 1 || PZ.failed) {
+      /* تلميح مرئي: سهم كامل */
+      clearArrow(parrowLayer);
+      let a = want[0], b = want[1];
+      if (PZ.flipped) { a = 63 - a; b = 63 - b; }
+      drawArrow(parrowLayer, a, b, '#2e9e5b');
+      setTimeout(() => clearArrow(parrowLayer), 1800);
+      pzSetStatus('هذه نقلة البداية — أكمل!', 'good');
+    } else {
+      /* تلميح خفيف: نبض على القطعة */
+      const d = pzDisp(want[0]);
+      const el = pzSquares[d];
+      el.classList.add('sel');
+      setTimeout(() => { el.classList.remove('sel'); pzRenderBoard(); }, 1200);
+      pzSetStatus('ركّز على هذه القطعة…', '');
+    }
+  });
+
+  $('#btn-pz-retry').addEventListener('click', () => {
+    C.SFX.select();
+    loadPuzzle();
+  });
+  $('#btn-pz-skip').addEventListener('click', () => {
+    C.SFX.select();
+    if (!PZ.solved) {
+      PZ.streak = 0;
+      ST.puzzles.failed++;
+      saveStats();
+    }
+    PZ.cat = PZ.cat === 'daily' ? 'all' : PZ.cat;
+    $$('#pz-cats .pz-cat').forEach(b => b.classList.toggle('selected', b.dataset.cat === PZ.cat));
+    loadPuzzle();
+  });
+  $('#btn-pz-next').addEventListener('click', () => {
+    C.SFX.select();
+    loadPuzzle();
+  });
+
+  $$('#pz-cats .pz-cat').forEach(b => {
+    const cnt = b.dataset.cat === 'daily' ? 1
+      : b.dataset.cat === 'all' ? PUZZLES.length
+      : PUZZLES.filter(p => p.t === b.dataset.cat).length;
+    const c = document.createElement('span');
+    c.className = 'cnt';
+    c.textContent = cnt;
+    b.appendChild(c);
+    b.addEventListener('click', () => {
+      PZ.cat = b.dataset.cat;
+      $$('#pz-cats .pz-cat').forEach(x => x.classList.toggle('selected', x === b));
+      C.SFX.select();
+      loadPuzzle();
+    });
+  });
+
+  function openPuzzles() {
+    C.ensureAudio();
+    puzzleScreen.classList.remove('hidden');
+    $('#setup').classList.add('hidden');
+    $('#game-screen').classList.add('hidden');
+    updatePzChips();
+    if (!PZ.st) loadPuzzle();
+  }
+  function closePuzzles() {
+    puzzleScreen.classList.add('hidden');
+    $('#setup').classList.remove('hidden');
+    PZ.streak = 0; /* إنهاء السلسلة عند الخروج */
+    updatePzChips();
+  }
+  $('#btn-puzzles').addEventListener('click', openPuzzles);
+  $('#btn-pz-back').addEventListener('click', () => { C.SFX.select(); closePuzzles(); });
+
+  /* ============================================================
+     12) تهيئة أخيرة
+     ============================================================ */
+  applyTimePref();
+  syncEvalVisibility();
+  updatePzChips();
+
+  /* مقبض الاختبار الآلي */
+  window.__FEATURES__ = {
+    prefs: prefs, T: T, RV: RV, PZ: PZ, ST: ST,
+    gotoPly: gotoPly, exitView: exitView, viewPly: () => viewPly,
+    startReview: startReview, openPuzzles: openPuzzles,
+    loadPuzzle: loadPuzzle, openStats: openStats,
+    checkAchievements: checkAchievements,
+    updateEvalNow: updateEvalNow
   };
 })();
 
