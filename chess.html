@@ -1,0 +1,2299 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>♞ لعبة الشطرنج</title>
+<meta name="description" content="لعبة شطرنج كاملة القواعد — لاعبان أو ضد الكمبيوتر بثلاثة مستويات، وضع ليلي ونهاري">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f2e8">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#161d26">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♞</text></svg>">
+<script>
+(function(){try{var t=localStorage.getItem('chess-theme');if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();
+</script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg1: #f7f2e8;
+  --bg2: #ece2cd;
+  --panel: #ffffff;
+  --panel-2: #f7f2e9;
+  --border: #e2d8c2;
+  --text: #2b2620;
+  --muted: #8d8371;
+  --accent: #3e7d43;
+  --accent-strong: #2f6b37;
+  --accent-soft: rgba(62, 125, 67, .12);
+  --danger: #c0392b;
+  --gold: #b98a2f;
+  --sq-l: #f0d9b5;
+  --sq-d: #b58863;
+  --frame1: #7a5a3a;
+  --frame2: #59422a;
+  --hl-last: rgba(246, 226, 100, .55);
+  --hl-sel: rgba(20, 85, 30, .5);
+  --dot: rgba(20, 85, 30, .32);
+  --piece-w: #fcfbf7;
+  --piece-w-stroke: #47403a;
+  --piece-b: #2a2723;
+  --piece-b-stroke: #100e0c;
+  --toast-bg: rgba(255, 255, 255, .93);
+  --toast-border: #e2d8c2;
+  --plus: #2e9e5b;
+  --shadow: 0 14px 34px rgba(74, 58, 32, .2);
+  --btn-shadow: 0 3px 10px rgba(74, 58, 32, .14);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg1: #161d26;
+  --bg2: #10161d;
+  --panel: #1f2935;
+  --panel-2: #27333f;
+  --border: #31404f;
+  --text: #e9e6de;
+  --muted: #8fa0b0;
+  --accent: #57a05b;
+  --accent-strong: #6cb571;
+  --accent-soft: rgba(87, 160, 91, .16);
+  --danger: #e06055;
+  --gold: #d4a94e;
+  --sq-l: #c6d0d7;
+  --sq-d: #5d7b8d;
+  --frame1: #2c3a48;
+  --frame2: #1c2733;
+  --hl-last: rgba(246, 226, 100, .38);
+  --hl-sel: rgba(50, 130, 60, .55);
+  --dot: rgba(30, 95, 40, .5);
+  --piece-w: #f4f3ee;
+  --piece-w-stroke: #3c4348;
+  --piece-b: #22201c;
+  --piece-b-stroke: #000000;
+  --toast-bg: rgba(26, 33, 42, .92);
+  --toast-border: #31404f;
+  --plus: #6fc489;
+  --shadow: 0 14px 34px rgba(0, 0, 0, .5);
+  --btn-shadow: 0 3px 10px rgba(0, 0, 0, .35);
+  color-scheme: dark;
+}
+
+/* مفتاح استقرار اللوحة: حجز مساحة شريط التمرير دائماً حتى لا يتغير
+   عرض الصفحة (وبالتالي حجم اللوحة) عند ظهوره أو اختفائه أثناء اللعب */
+html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
+
+body {
+  font-family: "Segoe UI", Tahoma, "Noto Naskh Arabic UI", "Noto Kufi Arabic", "Helvetica Neue", Arial, sans-serif;
+  background:
+    radial-gradient(1000px 600px at 85% -10%, var(--bg2), transparent 60%),
+    radial-gradient(800px 500px at -10% 110%, var(--bg2), transparent 55%),
+    var(--bg1);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.5;
+  /* سلوك تطبيق على الجوال: لا تحديد نص ولا قائمة نسخ بالضغط المطول */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  overscroll-behavior-y: contain;
+}
+
+.hidden { display: none !important; }
+button { font-family: inherit; color: inherit; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ============ شاشة الإعداد ============ */
+.setup-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  position: relative;
+  overflow: hidden;
+}
+.setup-screen::before {
+  content: "♞";
+  position: absolute;
+  font-size: 44vmin;
+  opacity: .05;
+  left: -6vmin;
+  bottom: -12vmin;
+  transform: rotate(-14deg);
+  pointer-events: none;
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
+}
+.theme-float { position: absolute; top: 16px; inset-inline-start: 16px; z-index: 5; }
+.setup-card {
+  position: relative;
+  width: min(540px, 96vw);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 26px;
+  padding: 30px 28px 24px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.setup-logo {
+  font-size: 54px;
+  line-height: 1.1;
+  color: var(--accent);
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
+}
+.setup-card h1 { font-size: 1.9rem; margin-top: 6px; letter-spacing: .5px; }
+.subtitle { color: var(--muted); font-size: .92rem; margin-top: 4px; }
+
+.opt-group { margin-top: 22px; text-align: start; }
+.opt-title { font-size: .85rem; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+.opt-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.opt-row.three { grid-template-columns: 1fr 1fr 1fr; }
+.opt {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: var(--panel-2);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 12px 8px 10px;
+  transition: border-color .15s, background .15s, transform .1s;
+  min-height: 76px; justify-content: center;
+}
+.opt:hover { border-color: var(--accent); }
+.opt.selected { border-color: var(--accent); background: var(--accent-soft); }
+.opt-icon {
+  font-size: 1.5rem; line-height: 1.25;
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
+}
+.opt-icon.piece.w { color: var(--piece-w); -webkit-text-stroke: .8px var(--piece-w-stroke); }
+.opt-icon.piece.b { color: var(--piece-b); -webkit-text-stroke: .8px var(--piece-b-stroke); }
+.opt-icon.piece { font-size: 1.45rem; }
+.opt-label { font-weight: 700; font-size: .95rem; }
+.opt-sub { font-size: .72rem; color: var(--muted); }
+
+#start-btn {
+  margin-top: 26px;
+  width: 100%;
+  padding: 16px;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  border: none;
+  border-radius: 18px;
+  box-shadow: 0 8px 22px var(--accent-soft), var(--btn-shadow);
+  transition: transform .12s, box-shadow .12s, filter .12s;
+}
+#start-btn:hover { transform: translateY(-2px); filter: brightness(1.05); }
+#start-btn:active { transform: translateY(0) scale(.99); }
+.rules-hint { margin-top: 16px; font-size: .75rem; color: var(--muted); line-height: 1.7; }
+
+/* ============ شاشة اللعب ============ */
+.game-screen { min-height: 100vh; display: flex; flex-direction: column; }
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 18px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  position: sticky; top: 0; z-index: 10;
+}
+.brand { font-weight: 800; font-size: 1.15rem; display: flex; align-items: center; gap: 8px; }
+.brand-glyph {
+  color: var(--accent); font-size: 1.4rem;
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
+}
+.topbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.icon-btn {
+  width: 42px; height: 42px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 1.1rem;
+  transition: background .15s, border-color .15s;
+}
+.icon-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+.icon-btn:disabled { opacity: .38; cursor: not-allowed; }
+.text-btn {
+  padding: 10px 16px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: .92rem;
+  transition: background .15s, border-color .15s;
+}
+.text-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+.text-btn.subtle { background: transparent; color: var(--muted); font-weight: 600; }
+.text-btn.subtle:hover { color: var(--text); }
+
+.layout {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 22px;
+  padding: 18px;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+.board-col {
+  display: flex; flex-direction: column; gap: 10px; flex: none;
+  align-items: center;
+  /* الحجم المعرف على العمود كله حتى تتطابق أشرطة اللاعبين مع عرض اللوحة دائماً */
+  --bsz: clamp(272px, min(calc(100vw - 446px), calc(100svh - 306px)), 620px);
+}
+
+/* ============ اللوحة — أبعاد ثابتة مستقرة ============
+   الحجم من وحدات ثابتة فقط (svh الأصغر ثابت + vw مع حجز مساحة
+   شريط التمرير)، فلا يتغير حجم اللوحة أبداً أثناء تحرك القطع. */
+.board-frame {
+  padding: 14px;
+  background: linear-gradient(150deg, var(--frame1), var(--frame2));
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+.board-box {
+  position: relative;
+  width: var(--bsz);
+  height: var(--bsz);
+  --sq: calc(var(--bsz) / 8);
+}
+.board {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  border-radius: 6px;
+  overflow: hidden;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 1;
+}
+.sq { position: relative; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.sq.l { background: var(--sq-l); }
+.sq.d { background: var(--sq-d); }
+
+/* تظليلات المربعات — عناصر مطلقة لا تؤثر إطلاقاً على التخطيط */
+.sq::before { content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none; transition: background-color .16s ease; }
+.sq.last::before { background: var(--hl-last); }
+.sq.sel::before { background: var(--hl-sel); }
+.sq.check::before {
+  background: radial-gradient(circle at 50% 42%, rgba(255, 45, 45, .75) 0%, rgba(230, 40, 40, .35) 45%, transparent 72%);
+}
+.sq.dot::after {
+  content: ""; position: absolute; width: 30%; height: 30%;
+  border-radius: 50%;
+  background: var(--dot);
+  pointer-events: none;
+}
+.sq.ring::after {
+  content: ""; position: absolute; top: 4%; right: 4%; bottom: 4%; left: 4%;
+  border-radius: 50%;
+  border: calc(var(--sq) * .085) solid var(--dot);
+  pointer-events: none;
+}
+
+/* ============ طبقة القطع المنفصلة ============
+   قطع دائمة تتحرك بـ transform فقط (تسريع عتادي، صفر reflow) */
+.pieces { position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 3; pointer-events: none; }
+.pc {
+  position: absolute; top: 0; left: 0;
+  width: 12.5%; height: 12.5%;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .22s cubic-bezier(.22, .75, .25, 1);
+  will-change: transform;
+}
+.pc.dying { z-index: 2; }
+.pc.dying .piece { animation: piece-die .32s ease-in forwards; }
+@keyframes piece-die { to { opacity: 0; transform: scale(.4); } }
+.piece.pop { animation: piece-pop .42s cubic-bezier(.3, 1.3, .5, 1); }
+@keyframes piece-pop { 0% { transform: scale(.5); } 55% { transform: scale(1.18); } 100% { transform: scale(1); } }
+
+/* القطع — الحجم مربوط بمقاس المربع الحقيقي دائماً */
+.piece {
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", "Arial Unicode MS", sans-serif;
+  line-height: 1;
+  pointer-events: none;
+}
+.piece.w { color: var(--piece-w); }
+.piece.b { color: var(--piece-b); }
+.board-box .piece { font-size: calc(var(--sq) * .82); }
+.board-box .piece.w {
+  -webkit-text-stroke: calc(var(--sq) * .02) var(--piece-w-stroke);
+  text-shadow: 0 calc(var(--sq) * .03) calc(var(--sq) * .05) rgba(0, 0, 0, .4);
+}
+.board-box .piece.b {
+  -webkit-text-stroke: calc(var(--sq) * .016) var(--piece-b-stroke);
+  text-shadow: 0 calc(var(--sq) * .03) calc(var(--sq) * .05) rgba(0, 0, 0, .34);
+}
+.promo-btn .piece { font-size: 46px; }
+.promo-btn .piece.w { -webkit-text-stroke: .8px var(--piece-w-stroke); }
+.promo-btn .piece.b { -webkit-text-stroke: .8px var(--piece-b-stroke); }
+
+/* إحداثيات اللوحة */
+.coord {
+  position: absolute;
+  font-size: calc(var(--sq) * .19);
+  font-weight: 700;
+  opacity: .85;
+  pointer-events: none;
+  z-index: 1;
+}
+.coord.cf { bottom: 3%; right: 6%; }
+.coord.cr { top: 3%; left: 6%; }
+.sq.l .coord { color: var(--sq-d); }
+.sq.d .coord { color: var(--sq-l); }
+
+/* ============ الرسائل التشجيعية فوق اللوحة ============ */
+.toast-layer {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  z-index: 6;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.toast {
+  margin-top: 11%;
+  direction: rtl;
+  white-space: nowrap;
+  font-weight: 800;
+  font-size: clamp(14px, calc(var(--bsz) * .048), 25px);
+  padding: .4em 1.5em;
+  border-radius: 999px;
+  background: var(--toast-bg);
+  color: var(--text);
+  border: 1.5px solid var(--toast-border);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .25);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  animation: toast-in .28s cubic-bezier(.2, .9, .3, 1.25) both;
+}
+.toast.out { animation: toast-out .34s ease-in forwards; }
+.toast.good { border-color: var(--accent); color: var(--accent-strong); }
+.toast.great { border-color: var(--gold); color: var(--gold); box-shadow: 0 8px 26px rgba(185, 138, 47, .3); }
+.toast.mate {
+  background: linear-gradient(135deg, #e0aa3e, #b97f1d);
+  border-color: #916414;
+  color: #fff;
+  font-size: clamp(17px, calc(var(--bsz) * .06), 32px);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+}
+@keyframes toast-in { from { opacity: 0; transform: translateY(12px) scale(.9); } }
+@keyframes toast-out { to { opacity: 0; transform: translateY(-14px) scale(.94); } }
+
+/* ============ شريطا اللاعبين — ارتفاع وعرض ثابتان ============ */
+.player-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--panel);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: 6px 14px;
+  height: 56px;
+  width: calc(var(--bsz) + 28px); /* عرض إطار اللوحة نفسه — لا يتمدد أبداً */
+  transition: border-color .2s, box-shadow .2s;
+}
+.player-bar.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.player-bar.winner { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(185, 138, 47, .25); }
+.pb-dot { width: 15px; height: 15px; border-radius: 50%; flex: none; border: 1.5px solid rgba(0, 0, 0, .35); }
+.pb-dot.w { background: #fcfbf7; }
+.pb-dot.b { background: #26231f; }
+[data-theme="dark"] .pb-dot.w { border-color: rgba(255, 255, 255, .55); }
+.pb-name { font-weight: 700; font-size: .92rem; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pb-color { color: var(--muted); font-weight: 600; font-size: .8rem; }
+.pb-caps {
+  display: flex; align-items: center;
+  margin-inline-start: auto;
+  direction: ltr;
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
+  font-size: 19px;
+  letter-spacing: -2px;
+  opacity: .95;
+  min-height: 24px;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  max-width: 34%;
+}
+.pb-caps .cap.w { color: var(--piece-w); -webkit-text-stroke: .5px var(--piece-w-stroke); }
+.pb-caps .cap.b { color: var(--piece-b); -webkit-text-stroke: .5px var(--piece-b-stroke); }
+.pb-adv {
+  background: var(--accent); color: #fff;
+  font-size: .72rem; font-weight: 800;
+  border-radius: 8px; padding: 2px 7px;
+  flex: none;
+}
+
+/* شارة النقاط */
+.pb-score {
+  flex: none;
+  display: inline-flex; align-items: baseline; gap: 7px;
+  background: var(--panel-2);
+  border: 1.5px solid var(--border);
+  border-radius: 11px;
+  padding: 3px 11px;
+  position: relative;
+  direction: rtl;
+}
+.pb-score .sc-label { font-size: .68rem; font-weight: 700; color: var(--muted); }
+.pb-score .sc-num {
+  font-size: 1.06rem; font-weight: 800; direction: ltr;
+  min-width: 1.6ch; text-align: center;
+  display: inline-block;
+}
+.sc-num.bump { animation: sc-bump .45s cubic-bezier(.2, .9, .3, 1.3); }
+@keyframes sc-bump { 35% { transform: scale(1.4); color: var(--gold); } }
+.sc-float {
+  position: absolute;
+  top: -6px; left: 50%;
+  transform: translateX(-50%);
+  direction: ltr;
+  font-size: .88rem; font-weight: 800;
+  color: var(--plus);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+  animation: sc-float 1.05s ease-out forwards;
+  pointer-events: none;
+  white-space: nowrap;
+}
+@keyframes sc-float {
+  0% { opacity: 0; transform: translate(-50%, 6px); }
+  18% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -20px); }
+}
+
+/* اللوحة الجانبية */
+.side { display: flex; flex-direction: column; gap: 14px; width: 320px; flex: none; }
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: var(--btn-shadow);
+}
+.status-panel #status-main {
+  font-size: 1.12rem; font-weight: 800;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  min-height: 1.9em;
+}
+#status-main .turn-dot { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid rgba(0, 0, 0, .35); flex: none; }
+#status-main .turn-dot.w { background: #fcfbf7; }
+#status-main .turn-dot.b { background: #26231f; }
+[data-theme="dark"] #status-main .turn-dot.w { border-color: rgba(255, 255, 255, .55); }
+.check-tag {
+  color: var(--danger);
+  font-size: .92rem;
+  background: rgba(200, 60, 50, .12);
+  padding: 2px 10px;
+  border-radius: 8px;
+  animation: check-pulse 1s ease-in-out infinite;
+}
+@keyframes check-pulse { 50% { opacity: .65; } }
+#status-sub { color: var(--muted); font-size: .8rem; margin-top: 5px; line-height: 1.7; min-height: 2.6em; }
+.spinner {
+  width: 15px; height: 15px; flex: none;
+  border: 2.5px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.dots span { animation: blink 1.2s infinite; }
+.dots span:nth-child(2) { animation-delay: .2s; }
+.dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%, 60%, 100% { opacity: .2; } 30% { opacity: 1; } }
+
+.moves-panel { flex: 1; display: flex; flex-direction: column; min-height: 150px; }
+.panel-title { font-size: .85rem; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+.moves { overflow-y: auto; flex: 1; direction: rtl; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.moves::-webkit-scrollbar { width: 8px; }
+.moves::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.mv-row {
+  display: grid; grid-template-columns: 2.4em 1fr 1fr; gap: 6px;
+  padding: 4px 8px; border-radius: 8px; font-size: .9rem;
+  align-items: center;
+}
+.mv-row:nth-child(even) { background: var(--panel-2); }
+.mv-row.current { background: var(--accent-soft); }
+.mv-n { color: var(--muted); font-size: .78rem; }
+.mv-s { direction: ltr; text-align: left; font-family: Consolas, "Cascadia Mono", Menlo, monospace; font-weight: 600; }
+.mv-empty { color: var(--muted); font-size: .85rem; text-align: center; padding: 14px 0; }
+
+/* النوافذ المنبثقة */
+.overlay {
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+  background: rgba(10, 10, 12, .58);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 60;
+  animation: fade .18s ease;
+  padding: 18px;
+}
+@keyframes fade { from { opacity: 0; } }
+.modal {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 26px 26px 22px;
+  width: min(420px, 94vw);
+  text-align: center;
+  box-shadow: var(--shadow);
+  animation: pop .22s cubic-bezier(.34, 1.56, .64, 1);
+}
+@keyframes pop { from { transform: scale(.9); opacity: 0; } }
+.modal-title { font-size: 1.2rem; font-weight: 800; }
+.modal-title.big { font-size: 1.55rem; }
+.modal-sub { color: var(--muted); margin-top: 6px; font-size: .95rem; }
+.modal-actions { display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+.primary-btn {
+  padding: 12px 22px;
+  color: #fff; font-weight: 800; font-size: 1rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  border: none; border-radius: 14px;
+  box-shadow: 0 6px 16px var(--accent-soft);
+  transition: transform .12s, filter .12s;
+}
+.primary-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+.over-icon {
+  font-size: 60px; line-height: 1.2;
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
+}
+.over-scores { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
+.osc-mid { text-align: center; color: var(--muted); font-size: .72rem; font-weight: 800; letter-spacing: 3px; margin: 2px 0; }
+.osc-row {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 16px;
+}
+.osc-row.winner { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(185, 138, 47, .22); }
+.osc-name { font-weight: 700; font-size: .92rem; }
+.osc-val { font-weight: 800; font-size: 1.25rem; direction: ltr; color: var(--accent-strong); }
+.promo-row { display: flex; gap: 12px; justify-content: center; margin: 18px 0 6px; }
+.promo-btn {
+  width: 74px; height: 74px;
+  background: var(--panel-2);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color .12s, background .12s, transform .12s;
+}
+.promo-btn:hover { border-color: var(--accent); background: var(--accent-soft); transform: translateY(-2px); }
+#promo-cancel { margin-top: 10px; }
+
+/* الاستجابة للشاشات الصغيرة */
+@media (max-width: 940px) {
+  .layout { flex-direction: column; align-items: center; }
+  .side { width: 100%; max-width: 648px; }
+  .moves-panel { max-height: 240px; }
+  .board-col { --bsz: clamp(255px, min(calc(100vw - 26px), calc(100svh - 330px)), 560px); width: 100%; max-width: 648px; }
+}
+@media (max-width: 560px) {
+  .topbar { padding: 8px 10px; }
+  .brand { font-size: 1rem; }
+  .icon-btn { width: 38px; height: 38px; font-size: 1rem; }
+  .text-btn { padding: 9px 12px; font-size: .85rem; }
+  .setup-card { padding: 22px 16px 18px; }
+  .setup-card h1 { font-size: 1.6rem; }
+  .pb-caps { font-size: 16px; max-width: 30%; }
+  .pb-color { display: none; }
+  .sc-label { display: none; }
+}
+
+/* توافق المتصفحات القديمة: بديل vh عن svh */
+@supports not (height: 1svh) {
+  .board-col { --bsz: clamp(272px, min(calc(100vw - 446px), calc(100vh - 306px)), 620px); }
+  @media (max-width: 940px) {
+    .board-col { --bsz: clamp(255px, min(calc(100vw - 26px), calc(100vh - 330px)), 560px); }
+  }
+}
+
+</style>
+</head>
+<body>
+<!-- ======= شاشة الإعداد ======= -->
+<div id="setup" class="screen setup-screen">
+  <button id="theme-setup" class="icon-btn theme-float" type="button" title="تبديل الوضع (ليلي/نهاري)">🌙</button>
+  <div class="setup-card">
+    <div class="setup-logo">♞</div>
+    <h1>لعبة الشطرنج</h1>
+    <p class="subtitle">شطرنج كامل بجميع القواعد الرسمية — العب مع صديق أو ضد الكمبيوتر</p>
+
+    <div class="opt-group">
+      <div class="opt-title">نمط اللعب</div>
+      <div class="opt-row" id="mode-row">
+        <button type="button" class="opt selected" data-mode="friend">
+          <span class="opt-icon">👥</span>
+          <span class="opt-label">لاعبان</span>
+          <span class="opt-sub">مع صديق على نفس الجهاز</span>
+        </button>
+        <button type="button" class="opt" data-mode="ai">
+          <span class="opt-icon">🤖</span>
+          <span class="opt-label">ضد الكمبيوتر</span>
+          <span class="opt-sub">ثلاثة مستويات ذكاء</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="opt-group hidden" id="diff-group">
+      <div class="opt-title">مستوى الصعوبة</div>
+      <div class="opt-row three" id="diff-row">
+        <button type="button" class="opt" data-diff="easy"><span class="opt-icon">🙂</span><span class="opt-label">سهل</span></button>
+        <button type="button" class="opt selected" data-diff="medium"><span class="opt-icon">🤔</span><span class="opt-label">متوسط</span></button>
+        <button type="button" class="opt" data-diff="hard"><span class="opt-icon">😈</span><span class="opt-label">صعب</span></button>
+      </div>
+    </div>
+
+    <div class="opt-group hidden" id="color-group">
+      <div class="opt-title">اختر لون قطعك</div>
+      <div class="opt-row three" id="color-row">
+        <button type="button" class="opt selected" data-color="w"><span class="opt-icon piece w">♔</span><span class="opt-label">الأبيض</span></button>
+        <button type="button" class="opt" data-color="b"><span class="opt-icon piece b">♚</span><span class="opt-label">الأسود</span></button>
+        <button type="button" class="opt" data-color="rand"><span class="opt-icon">🎲</span><span class="opt-label">عشوائي</span></button>
+      </div>
+    </div>
+
+    <button id="start-btn" type="button">▶ ابدأ اللعبة</button>
+    <div class="rules-hint">تبييت · أخذ بالمرور · ترقية البيدق · كش مات · تعادلات كاملة · نظام نقاط يكافئ أداءك (أسر، كش، شوكة، تبييت، ترقية) ورسائل تشجيع للحركات المميزة</div>
+  </div>
+</div>
+
+<!-- ======= شاشة اللعب ======= -->
+<div id="game-screen" class="screen game-screen hidden">
+  <header class="topbar">
+    <div class="brand"><span class="brand-glyph">♞</span>الشطرنج</div>
+    <div class="topbar-actions">
+      <button id="btn-undo" class="icon-btn" type="button" title="تراجع عن نقلة">↩</button>
+      <button id="btn-flip" class="icon-btn" type="button" title="قلب اللوحة">⇵</button>
+      <button id="btn-sound" class="icon-btn" type="button" title="الصوت">🔊</button>
+      <button id="btn-theme" class="icon-btn" type="button" title="تبديل الوضع (ليلي/نهاري)">🌙</button>
+      <button id="btn-new" class="text-btn" type="button">✚ لعبة جديدة</button>
+    </div>
+  </header>
+  <main class="layout">
+    <section class="board-col">
+      <div class="player-bar" id="bar-top"></div>
+      <div class="board-frame" dir="ltr">
+        <div class="board-box">
+          <div id="board" class="board"></div>
+          <div id="pieces" class="pieces"></div>
+          <div id="toast-layer" class="toast-layer"></div>
+        </div>
+      </div>
+      <div class="player-bar" id="bar-bottom"></div>
+    </section>
+    <aside class="side">
+      <div class="panel status-panel">
+        <div id="status-main">—</div>
+        <div id="status-sub">—</div>
+      </div>
+      <div class="panel moves-panel">
+        <div class="panel-title">سجل النقلات</div>
+        <div id="moves" class="moves"></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<!-- ======= نافذة ترقية البيدق ======= -->
+<div id="promo-modal" class="overlay hidden">
+  <div class="modal">
+    <div class="modal-title">ترقية البيدق — اختر القطعة</div>
+    <div id="promo-btns" class="promo-row" dir="ltr"></div>
+    <button id="promo-cancel" class="text-btn subtle" type="button">إلغاء</button>
+  </div>
+</div>
+
+<!-- ======= نافذة نهاية اللعبة ======= -->
+<div id="over-modal" class="overlay hidden">
+  <div class="modal">
+    <div id="over-icon" class="over-icon">🏆</div>
+    <div id="over-title" class="modal-title big">—</div>
+    <div id="over-sub" class="modal-sub">—</div>
+    <div id="over-scores" class="over-scores"></div>
+    <div class="modal-actions">
+      <button id="over-new" class="primary-btn" type="button">✚ لعبة جديدة</button>
+      <button id="over-close" class="text-btn subtle" type="button">عرض اللوحة</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   محرك الشطرنج — كل القواعد الرسمية:
+   حركات القطع، التبييت، الأخذ بالمرور، الترقية، الكش،
+   كش المات، الطريق المسدود، قاعدة الخمسين نقلة، التكرار
+   الثلاثي، نقص القطع، والذكاء الاصطناعي بثلاثة مستويات.
+   لا يعتمد على أي عناصر DOM — قابل للاختبار عبر Node.
+   تمثيل اللوحة: مصفوفة 64 خانة، الفهرس 0 = a8 (الصف الأعلى).
+   القيم: 1 بيدق، 2 حصان، 3 فيل، 4 رخ، 5 وزير، 6 ملك
+   (موجبة للأبيض وسالبة للأسود)، 0 = فارغة.
+   ============================================================ */
+'use strict';
+
+/* ---------- ثوابت ---------- */
+const N_DELTAS = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
+const K_DELTAS = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+const B_DIRS = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+const R_DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+const Q_DIRS = B_DIRS.concat(R_DIRS);
+
+/* الترتيب حسب: قيمة القطعة + 6 = الفهرس (k=-6 ... K=6) */
+const PIECE_CHARS = 'kqrbnp.PNBRQK';
+const FILES = 'abcdefgh';
+const VAL = [0, 100, 320, 330, 500, 900, 20000];
+const SAN_LETTER = { 2: 'N', 3: 'B', 4: 'R', 5: 'Q', 6: 'K' };
+
+/* جداول تقييم المربعات (منظور الأبيض؛ الفهرس 0 = a8) */
+const PST_P = [
+  0, 0, 0, 0, 0, 0, 0, 0,
+  50, 50, 50, 50, 50, 50, 50, 50,
+  10, 10, 20, 30, 30, 20, 10, 10,
+  5, 5, 10, 25, 25, 10, 5, 5,
+  0, 0, 0, 20, 20, 0, 0, 0,
+  5, -5, -10, 0, 0, -10, -5, 5,
+  5, 10, 10, -20, -20, 10, 10, 5,
+  0, 0, 0, 0, 0, 0, 0, 0
+];
+const PST_N = [
+  -50, -40, -30, -30, -30, -30, -40, -50,
+  -40, -20, 0, 0, 0, 0, -20, -40,
+  -30, 0, 10, 15, 15, 10, 0, -30,
+  -30, 5, 15, 20, 20, 15, 5, -30,
+  -30, 0, 15, 20, 20, 15, 0, -30,
+  -30, 5, 10, 15, 15, 10, 5, -30,
+  -40, -20, 0, 5, 5, 0, -20, -40,
+  -50, -40, -30, -30, -30, -30, -40, -50
+];
+const PST_B = [
+  -20, -10, -10, -10, -10, -10, -10, -20,
+  -10, 0, 0, 0, 0, 0, 0, -10,
+  -10, 0, 5, 10, 10, 5, 0, -10,
+  -10, 5, 5, 10, 10, 5, 5, -10,
+  -10, 0, 10, 10, 10, 10, 0, -10,
+  -10, 10, 10, 10, 10, 10, 10, -10,
+  -10, 5, 0, 0, 0, 0, 5, -10,
+  -20, -10, -10, -10, -10, -10, -10, -20
+];
+const PST_R = [
+  0, 0, 0, 0, 0, 0, 0, 0,
+  5, 10, 10, 10, 10, 10, 10, 5,
+  -5, 0, 0, 0, 0, 0, 0, -5,
+  -5, 0, 0, 0, 0, 0, 0, -5,
+  -5, 0, 0, 0, 0, 0, 0, -5,
+  -5, 0, 0, 0, 0, 0, 0, -5,
+  -5, 0, 0, 0, 0, 0, 0, -5,
+  0, 0, 0, 5, 5, 0, 0, 0
+];
+const PST_Q = [
+  -20, -10, -10, -5, -5, -10, -10, -20,
+  -10, 0, 0, 0, 0, 0, 0, -10,
+  -10, 0, 5, 5, 5, 5, 0, -10,
+  -5, 0, 5, 5, 5, 5, 0, -5,
+  0, 0, 5, 5, 5, 5, 0, -5,
+  -10, 5, 5, 5, 5, 5, 0, -10,
+  -10, 0, 5, 0, 0, 0, 0, -10,
+  -20, -10, -10, -5, -5, -10, -10, -20
+];
+const PST_KM = [
+  -30, -40, -40, -50, -50, -40, -40, -30,
+  -30, -40, -40, -50, -50, -40, -40, -30,
+  -30, -40, -40, -50, -50, -40, -40, -30,
+  -30, -40, -40, -50, -50, -40, -40, -30,
+  -20, -30, -30, -40, -40, -30, -30, -20,
+  -10, -20, -20, -20, -20, -20, -20, -10,
+  20, 20, 0, 0, 0, 0, 20, 20,
+  20, 30, 10, 0, 0, 10, 30, 20
+];
+const PST_KE = [
+  -50, -40, -30, -20, -20, -30, -40, -50,
+  -30, -20, -10, 0, 0, -10, -20, -30,
+  -30, -10, 20, 30, 30, 20, -10, -30,
+  -30, -10, 30, 40, 40, 30, -10, -30,
+  -30, -10, 30, 40, 40, 30, -10, -30,
+  -30, -10, 20, 30, 30, 20, -10, -30,
+  -30, -30, 0, 0, 0, 0, -30, -30,
+  -50, -30, -30, -30, -30, -30, -50, -50
+];
+
+/* ---------- إنشاء الحالة ---------- */
+function initialState() {
+  const board = new Array(64).fill(0);
+  const back = [4, 2, 3, 5, 6, 3, 2, 4];
+  for (let c = 0; c < 8; c++) {
+    board[c] = -back[c];      /* الصف الثامن: القطع السوداء */
+    board[8 + c] = -1;        /* بيادق السوداء */
+    board[48 + c] = 1;        /* بيادق البيض */
+    board[56 + c] = back[c];  /* الصف الأول: القطع البيضاء */
+  }
+  return {
+    board: board,
+    turn: 1,
+    castling: { wk: true, wq: true, bk: true, bq: true },
+    enPassant: -1,
+    halfmove: 0
+  };
+}
+
+function fenToState(fen) {
+  const parts = fen.trim().split(/\s+/);
+  const board = new Array(64).fill(0);
+  let r = 0, c = 0;
+  for (const ch of parts[0]) {
+    if (ch === '/') { r++; c = 0; continue; }
+    if (ch >= '1' && ch <= '8') { c += +ch; continue; }
+    const i = PIECE_CHARS.indexOf(ch);
+    board[r * 8 + c] = i - 6;
+    c++;
+  }
+  return {
+    board: board,
+    turn: parts[1] === 'w' ? 1 : -1,
+    castling: {
+      wk: !!parts[2] && parts[2].indexOf('K') >= 0,
+      wq: !!parts[2] && parts[2].indexOf('Q') >= 0,
+      bk: !!parts[2] && parts[2].indexOf('k') >= 0,
+      bq: !!parts[2] && parts[2].indexOf('q') >= 0
+    },
+    enPassant: (parts[3] && parts[3] !== '-')
+      ? (FILES.indexOf(parts[3][0]) + (8 - +parts[3][1]) * 8)
+      : -1,
+    halfmove: parts[4] ? +parts[4] : 0
+  };
+}
+
+/* ---------- توليد النقلات ---------- */
+function pushPawnMove(moves, from, to, piece, captured, isPromo) {
+  if (isPromo) {
+    for (const promo of [5, 2, 4, 3]) {
+      moves.push({ from: from, to: to, piece: piece, captured: captured, promo: promo, flag: null });
+    }
+  } else {
+    moves.push({ from: from, to: to, piece: piece, captured: captured, promo: 0, flag: null });
+  }
+}
+
+/* نقلات شبه قانونية (لا تشترط أمان الملك) */
+function generateMoves(st, color) {
+  const moves = [];
+  const b = st.board;
+  for (let sq = 0; sq < 64; sq++) {
+    const p = b[sq];
+    if (!p || (p > 0) !== (color > 0)) continue;
+    const t = Math.abs(p);
+    const r = sq >> 3, c = sq & 7;
+
+    if (t === 1) { /* البيدق */
+      const dir = color > 0 ? -1 : 1;
+      const startR = color > 0 ? 6 : 1;
+      const promoR = color > 0 ? 0 : 7;
+      const fr = r + dir;
+      if (fr >= 0 && fr < 8) {
+        /* تقدم للأمام */
+        if (!b[fr * 8 + c]) {
+          pushPawnMove(moves, sq, fr * 8 + c, p, 0, fr === promoR);
+          /* تقدم مزدوج من مربع البداية */
+          if (r === startR && !b[(r + 2 * dir) * 8 + c]) {
+            moves.push({ from: sq, to: (r + 2 * dir) * 8 + c, piece: p, captured: 0, promo: 0, flag: 'double' });
+          }
+        }
+        /* الأسر القطري + الأخذ بالمرور */
+        for (const dc of [-1, 1]) {
+          const fc = c + dc;
+          if (fc < 0 || fc > 7) continue;
+          const to = fr * 8 + fc;
+          const q = b[to];
+          if (q && (q > 0) !== (color > 0)) {
+            pushPawnMove(moves, sq, to, p, q, fr === promoR);
+          } else if (!q && to === st.enPassant && b[to + (color > 0 ? 8 : -8)] === -color) {
+            moves.push({ from: sq, to: to, piece: p, captured: -color, promo: 0, flag: 'ep' });
+          }
+        }
+      }
+    } else if (t === 2 || t === 6) { /* الحصان والملك */
+      const deltas = t === 2 ? N_DELTAS : K_DELTAS;
+      for (const d of deltas) {
+        const nr = r + d[0], nc = c + d[1];
+        if (nr < 0 || nr > 7 || nc < 0 || nc > 7) continue;
+        const to = nr * 8 + nc;
+        const q = b[to];
+        if (!q || (q > 0) !== (color > 0)) {
+          moves.push({ from: sq, to: to, piece: p, captured: q, promo: 0, flag: null });
+        }
+      }
+      /* التبييت */
+      if (t === 6) {
+        if (color > 0 && sq === 60) {
+          if (st.castling.wk && !b[61] && !b[62] && b[63] === 4 &&
+              !isSquareAttacked(b, 60, -1) && !isSquareAttacked(b, 61, -1) && !isSquareAttacked(b, 62, -1)) {
+            moves.push({ from: 60, to: 62, piece: p, captured: 0, promo: 0, flag: 'castleK' });
+          }
+          if (st.castling.wq && !b[59] && !b[58] && !b[57] && b[56] === 4 &&
+              !isSquareAttacked(b, 60, -1) && !isSquareAttacked(b, 59, -1) && !isSquareAttacked(b, 58, -1)) {
+            moves.push({ from: 60, to: 58, piece: p, captured: 0, promo: 0, flag: 'castleQ' });
+          }
+        }
+        if (color < 0 && sq === 4) {
+          if (st.castling.bk && !b[5] && !b[6] && b[7] === -4 &&
+              !isSquareAttacked(b, 4, 1) && !isSquareAttacked(b, 5, 1) && !isSquareAttacked(b, 6, 1)) {
+            moves.push({ from: 4, to: 6, piece: p, captured: 0, promo: 0, flag: 'castleK' });
+          }
+          if (st.castling.bq && !b[3] && !b[2] && !b[1] && b[0] === -4 &&
+              !isSquareAttacked(b, 4, 1) && !isSquareAttacked(b, 3, 1) && !isSquareAttacked(b, 2, 1)) {
+            moves.push({ from: 4, to: 2, piece: p, captured: 0, promo: 0, flag: 'castleQ' });
+          }
+        }
+      }
+    } else { /* الفيل والرخ والوزير */
+      const dirs = t === 3 ? B_DIRS : t === 4 ? R_DIRS : Q_DIRS;
+      for (const d of dirs) {
+        let nr = r + d[0], nc = c + d[1];
+        while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+          const to = nr * 8 + nc;
+          const q = b[to];
+          if (!q) {
+            moves.push({ from: sq, to: to, piece: p, captured: 0, promo: 0, flag: null });
+          } else {
+            if ((q > 0) !== (color > 0)) {
+              moves.push({ from: sq, to: to, piece: p, captured: q, promo: 0, flag: null });
+            }
+            break;
+          }
+          nr += d[0]; nc += d[1];
+        }
+      }
+    }
+  }
+  return moves;
+}
+
+/* هل المربع sq مهدد من لون by؟ */
+function isSquareAttacked(b, sq, by) {
+  const r = sq >> 3, c = sq & 7;
+  /* البيادق */
+  if (by > 0) {
+    if (r < 7) {
+      if (c > 0 && b[(r + 1) * 8 + c - 1] === 1) return true;
+      if (c < 7 && b[(r + 1) * 8 + c + 1] === 1) return true;
+    }
+  } else {
+    if (r > 0) {
+      if (c > 0 && b[(r - 1) * 8 + c - 1] === -1) return true;
+      if (c < 7 && b[(r - 1) * 8 + c + 1] === -1) return true;
+    }
+  }
+  /* الأحصنة */
+  for (const d of N_DELTAS) {
+    const nr = r + d[0], nc = c + d[1];
+    if (nr < 0 || nr > 7 || nc < 0 || nc > 7) continue;
+    if (b[nr * 8 + nc] === 2 * by) return true;
+  }
+  /* الملك */
+  for (const d of K_DELTAS) {
+    const nr = r + d[0], nc = c + d[1];
+    if (nr < 0 || nr > 7 || nc < 0 || nc > 7) continue;
+    if (b[nr * 8 + nc] === 6 * by) return true;
+  }
+  /* الرخ/الوزير */
+  for (const d of R_DIRS) {
+    let nr = r + d[0], nc = c + d[1];
+    while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+      const q = b[nr * 8 + nc];
+      if (q) {
+        if (q === 4 * by || q === 5 * by) return true;
+        break;
+      }
+      nr += d[0]; nc += d[1];
+    }
+  }
+  /* الفيل/الوزير */
+  for (const d of B_DIRS) {
+    let nr = r + d[0], nc = c + d[1];
+    while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+      const q = b[nr * 8 + nc];
+      if (q) {
+        if (q === 3 * by || q === 5 * by) return true;
+        break;
+      }
+      nr += d[0]; nc += d[1];
+    }
+  }
+  return false;
+}
+
+function findKingSq(b, color) {
+  const k = 6 * color;
+  for (let sq = 0; sq < 64; sq++) if (b[sq] === k) return sq;
+  return -1;
+}
+
+function kingAttacked(st, color) {
+  const sq = findKingSq(st.board, color);
+  return sq >= 0 && isSquareAttacked(st.board, sq, -color);
+}
+
+/* نقلات قانونية تماماً (بعد استبعاد ما يكشف الملك) */
+function generateLegalMoves(st) {
+  const out = [];
+  const moves = generateMoves(st, st.turn);
+  for (const m of moves) {
+    const u = makeMove(st, m);
+    if (!kingAttacked(st, -st.turn)) out.push(m);
+    unmakeMove(st, m, u);
+  }
+  return out;
+}
+
+/* ---------- تنفيذ النقلة وإلغاؤها ---------- */
+function makeMove(st, m) {
+  const b = st.board;
+  const u = {
+    castling: { wk: st.castling.wk, wq: st.castling.wq, bk: st.castling.bk, bq: st.castling.bq },
+    enPassant: st.enPassant,
+    halfmove: st.halfmove,
+    captured: b[m.to],
+    epCapSq: -1,
+    epCapPiece: 0,
+    turn: st.turn
+  };
+  const p = b[m.from];
+  b[m.from] = 0;
+
+  if (m.flag === 'ep') {
+    const capSq = m.to + (st.turn > 0 ? 8 : -8);
+    u.epCapSq = capSq;
+    u.epCapPiece = b[capSq];
+    b[capSq] = 0;
+  }
+
+  b[m.to] = m.promo ? m.promo * st.turn : p;
+
+  if (m.flag === 'castleK') {
+    if (st.turn > 0) { b[61] = b[63]; b[63] = 0; }
+    else { b[5] = b[7]; b[7] = 0; }
+  } else if (m.flag === 'castleQ') {
+    if (st.turn > 0) { b[59] = b[56]; b[56] = 0; }
+    else { b[3] = b[0]; b[0] = 0; }
+  }
+
+  /* حقوق التبييت: تُفقد بتحرك الملك أو الرخ أو أسر الرخ في مكانه */
+  if (p === 6) { st.castling.wk = false; st.castling.wq = false; }
+  else if (p === -6) { st.castling.bk = false; st.castling.bq = false; }
+  if (m.from === 63 || m.to === 63) st.castling.wk = false;
+  if (m.from === 56 || m.to === 56) st.castling.wq = false;
+  if (m.from === 7 || m.to === 7) st.castling.bk = false;
+  if (m.from === 0 || m.to === 0) st.castling.bq = false;
+
+  st.enPassant = m.flag === 'double' ? ((m.from + m.to) >> 1) : -1;
+  st.halfmove = (Math.abs(p) === 1 || m.captured) ? 0 : st.halfmove + 1;
+  st.turn = -st.turn;
+  return u;
+}
+
+function unmakeMove(st, m, u) {
+  const b = st.board;
+  st.turn = u.turn;
+  st.castling = { wk: u.castling.wk, wq: u.castling.wq, bk: u.castling.bk, bq: u.castling.bq };
+  st.enPassant = u.enPassant;
+  st.halfmove = u.halfmove;
+
+  b[m.from] = m.promo ? st.turn : b[m.to];
+  b[m.to] = u.captured;
+  if (m.flag === 'ep') {
+    b[u.epCapSq] = u.epCapPiece;
+    b[m.to] = 0;
+  }
+  if (m.flag === 'castleK') {
+    if (st.turn > 0) { b[63] = b[61]; b[61] = 0; }
+    else { b[7] = b[5]; b[5] = 0; }
+  } else if (m.flag === 'castleQ') {
+    if (st.turn > 0) { b[56] = b[59]; b[59] = 0; }
+    else { b[0] = b[3]; b[3] = 0; }
+  }
+}
+
+/* ---------- الترقيم القياسي SAN ---------- */
+function moveToSan(st, m, legalMoves) {
+  if (m.flag === 'castleK') return 'O-O';
+  if (m.flag === 'castleQ') return 'O-O-O';
+  const type = Math.abs(m.piece);
+  const dest = FILES[m.to & 7] + (8 - (m.to >> 3));
+  if (type === 1) {
+    let s = m.captured ? FILES[m.from & 7] + 'x' + dest : dest;
+    if (m.promo) s += '=' + SAN_LETTER[m.promo];
+    return s;
+  }
+  let amb = false, ambFile = false, ambRank = false;
+  for (const om of legalMoves) {
+    if (om.from !== m.from && om.to === m.to && Math.abs(om.piece) === type) {
+      amb = true;
+      if ((om.from & 7) === (m.from & 7)) ambFile = true;
+      if ((om.from >> 3) === (m.from >> 3)) ambRank = true;
+    }
+  }
+  let dis = '';
+  if (amb) {
+    if (!ambFile) dis = FILES[m.from & 7];
+    else if (!ambRank) dis = String(8 - (m.from >> 3));
+    else dis = FILES[m.from & 7] + (8 - (m.from >> 3));
+  }
+  return SAN_LETTER[type] + dis + (m.captured ? 'x' : '') + dest;
+}
+
+/* ---------- قواعد التعادل ---------- */
+/* نقص القطع: لا يمكن نظرياً تحقيق كش مات */
+function insufficientMaterial(b) {
+  const minors = [];
+  for (let sq = 0; sq < 64; sq++) {
+    const p = b[sq];
+    if (!p) continue;
+    const t = Math.abs(p);
+    if (t === 6) continue;
+    if (t === 2 || t === 3) {
+      minors.push({ p: p, sqColor: ((sq >> 3) + (sq & 7)) & 1 });
+    } else {
+      return false; /* وجود بيدق أو رخ أو وزير = مواد كافية */
+    }
+  }
+  if (minors.length === 0) return true;                 /* ملك ضد ملك */
+  if (minors.length === 1) return true;                 /* ملك + فيل/حصان ضد ملك */
+  if (minors.length === 2 && minors[0].p * minors[1].p < 0) {
+    const bishops = minors.filter(x => Math.abs(x.p) === 3);
+    if (bishops.length === 2 && bishops[0].sqColor === bishops[1].sqColor) return true;
+  }
+  return false;
+}
+
+/* هل الأخذ بالمرور ممكن فعلاً في هذا الوضع؟ (لتوثيق التكرار بدقة) */
+function epCapturePossible(st) {
+  const ep = st.enPassant;
+  if (ep < 0) return false;
+  const r = ep >> 3, c = ep & 7;
+  if (st.turn > 0) {
+    if (r !== 2) return false;
+    for (const dc of [-1, 1]) {
+      const nc = c + dc;
+      if (nc >= 0 && nc < 8 && st.board[24 + nc] === 1) return true;
+    }
+  } else {
+    if (r !== 5) return false;
+    for (const dc of [-1, 1]) {
+      const nc = c + dc;
+      if (nc >= 0 && nc < 8 && st.board[32 + nc] === -1) return true;
+    }
+  }
+  return false;
+}
+
+/* مفتاح فريد للوضع (للكشف عن التكرار الثلاثي) */
+function positionKey(st) {
+  let s = '';
+  for (let i = 0; i < 64; i++) s += PIECE_CHARS[st.board[i] + 6];
+  s += st.turn > 0 ? 'w' : 'b';
+  s += (st.castling.wk ? 'K' : '') + (st.castling.wq ? 'Q' : '') +
+       (st.castling.bk ? 'k' : '') + (st.castling.bq ? 'q' : '');
+  if (epCapturePossible(st)) s += 'e' + st.enPassant;
+  return s;
+}
+
+/* ---------- التقييم والبحث (الذكاء الاصطناعي) ---------- */
+function evaluate(st) {
+  const b = st.board;
+  let wb = 0, bb = 0, npm = 0;
+  for (let sq = 0; sq < 64; sq++) {
+    const p = b[sq];
+    if (!p) continue;
+    const t = Math.abs(p);
+    if (t === 3) { if (p > 0) wb++; else bb++; }
+    else if (t !== 1 && t !== 6) npm += VAL[t];
+  }
+  const endgame = npm < 1600;
+  let score = 0;
+  for (let sq = 0; sq < 64; sq++) {
+    const p = b[sq];
+    if (!p) continue;
+    const t = Math.abs(p);
+    const idx = p > 0 ? sq : (sq ^ 56);
+    let v = VAL[t];
+    if (t === 1) v += PST_P[idx];
+    else if (t === 2) v += PST_N[idx];
+    else if (t === 3) v += PST_B[idx];
+    else if (t === 4) v += PST_R[idx];
+    else if (t === 5) v += PST_Q[idx];
+    else v += (endgame ? PST_KE : PST_KM)[idx];
+    score += p > 0 ? v : -v;
+  }
+  if (wb >= 2) score += 30;
+  if (bb >= 2) score -= 30;
+  return score;
+}
+
+function orderMoves(moves) {
+  for (const m of moves) {
+    m.score = 0;
+    if (m.captured) m.score += 10 * VAL[Math.abs(m.captured)] - VAL[Math.abs(m.piece)];
+    if (m.promo) m.score += VAL[m.promo];
+  }
+  moves.sort((a, b2) => b2.score - a.score);
+}
+
+function negamax(st, depth, alpha, beta, ply) {
+  if (depth === 0) return quiesce(st, alpha, beta, 8);
+  const moves = generateMoves(st, st.turn);
+  orderMoves(moves);
+  let legal = 0, best = -Infinity;
+  for (const m of moves) {
+    const u = makeMove(st, m);
+    if (kingAttacked(st, -st.turn)) { unmakeMove(st, m, u); continue; }
+    legal++;
+    const sc = -negamax(st, depth - 1, -beta, -alpha, ply + 1);
+    unmakeMove(st, m, u);
+    if (sc > best) best = sc;
+    if (best > alpha) alpha = best;
+    if (alpha >= beta) break;
+  }
+  if (!legal) {
+    return kingAttacked(st, st.turn) ? -(100000 - ply) : 0;
+  }
+  return best;
+}
+
+/* بحث الهدوء: يمنع تأثير الأفق بتمديد سلاسل الأسر */
+function quiesce(st, alpha, beta, qd) {
+  const stand = evaluate(st) * st.turn;
+  if (stand >= beta) return stand;
+  if (stand > alpha) alpha = stand;
+  if (qd <= 0) return alpha;
+  const caps = generateMoves(st, st.turn).filter(m => m.captured || m.promo);
+  orderMoves(caps);
+  for (const m of caps) {
+    const u = makeMove(st, m);
+    if (kingAttacked(st, -st.turn)) { unmakeMove(st, m, u); continue; }
+    const sc = -quiesce(st, -beta, -alpha, qd - 1);
+    unmakeMove(st, m, u);
+    if (sc >= beta) return sc;
+    if (sc > alpha) alpha = sc;
+  }
+  return alpha;
+}
+
+/* اختيار نقلة الكمبيوتر حسب المستوى */
+function chooseAiMove(st, difficulty) {
+  const legal = generateLegalMoves(st);
+  if (!legal.length) return null;
+
+  if (difficulty === 'easy') {
+    /* سهل: نقلة عشوائية قانونية */
+    return legal[(Math.random() * legal.length) | 0];
+  }
+
+  /* خلط عشوائي لتنويع اللعب ثم ترتيب حسب جودة الأسر */
+  for (let i = legal.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
+    const tmp = legal[i]; legal[i] = legal[j]; legal[j] = tmp;
+  }
+  orderMoves(legal);
+
+  if (difficulty === 'medium') {
+    /* متوسط: بحث بعمق 2 مع تنويع بين النقلات المتقاربة */
+    const scored = [];
+    for (const m of legal) {
+      const u = makeMove(st, m);
+      const sc = -negamax(st, 1, -Infinity, Infinity, 1);
+      unmakeMove(st, m, u);
+      scored.push({ m: m, sc: sc });
+    }
+    scored.sort((a, b2) => b2.sc - a.sc);
+    const pool = scored.filter(s => s.sc >= scored[0].sc - 60);
+    return pool[(Math.random() * pool.length) | 0].m;
+  }
+
+  /* صعب: بحث بعمق 3 مع تشذيب ألفا-بيتا وبحث الهدوء */
+  let best = null, alpha = -Infinity;
+  for (const m of legal) {
+    const u = makeMove(st, m);
+    const sc = -negamax(st, 2, -Infinity, -alpha, 1);
+    unmakeMove(st, m, u);
+    if (sc > alpha) { alpha = sc; best = m; }
+  }
+  return best;
+}
+
+/* ---------- نظام النقاط والتحليل (للواجهة) ---------- */
+/* نقاط العرض لقيمة كل قطعة عند الأسر */
+const SCORE_PTS = [0, 10, 30, 30, 50, 90, 0];
+
+/* القطع المعادية التي تهاجمها القطعة الواقعة في sq */
+function attacksFrom(b, sq) {
+  const p = b[sq];
+  if (!p) return [];
+  const color = p > 0 ? 1 : -1;
+  const t = Math.abs(p);
+  const r = sq >> 3, c = sq & 7;
+  const out = [];
+  const push = tsq => {
+    const q = b[tsq];
+    if (q && (q > 0) !== (color > 0)) out.push({ type: Math.abs(q), king: Math.abs(q) === 6 });
+  };
+  if (t === 1) {
+    const d = color > 0 ? -1 : 1;
+    for (const dc of [-1, 1]) {
+      const nr = r + d, nc = c + dc;
+      if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) push(nr * 8 + nc);
+    }
+  } else if (t === 2 || t === 6) {
+    const deltas = t === 2 ? N_DELTAS : K_DELTAS;
+    for (const d of deltas) {
+      const nr = r + d[0], nc = c + d[1];
+      if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) push(nr * 8 + nc);
+    }
+  } else {
+    const dirs = t === 3 ? B_DIRS : t === 4 ? R_DIRS : Q_DIRS;
+    for (const d of dirs) {
+      let nr = r + d[0], nc = c + d[1];
+      while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+        const tsq = nr * 8 + nc;
+        if (b[tsq]) { push(tsq); break; }
+        nr += d[0]; nc += d[1];
+      }
+    }
+  }
+  return out;
+}
+
+/* يحسب نقاط النقلة وحدثها البارز — يُستدعى بعد تنفيذ النقلة مباشرة.
+   النقاط: أسر (قيمة القطعة) + كش 5 + تبييت 15 + ترقية 20 +
+   أخذ بالمرور 12 + شوكة 8 + مبادلة رابحة 10 + كش مات 150 */
+function scoreMoveEvent(st, m, result, inCheck) {
+  const mover = m.piece > 0 ? 1 : -1;
+  let pts = 0;
+
+  const capV = m.captured ? SCORE_PTS[Math.abs(m.captured)] : 0;
+  if (capV) pts += capV;
+
+  const isMate = result === 'white' || result === 'black';
+  if (isMate) pts += 150;
+  if (inCheck && !isMate) pts += 5;
+  if (m.flag === 'ep') pts += 12;
+  if (m.promo) pts += 20;
+  if (m.flag === 'castleK' || m.flag === 'castleQ') pts += 15;
+
+  /* الشوكة: القطعة بعد نقلتها تهاجم ملكاً أو قطعتين لا تقل قيمتهما عن قيمتها */
+  const mineVal = VAL[Math.abs(m.piece)];
+  const atk = attacksFrom(st.board, m.to);
+  let forks = 0;
+  for (const a of atk) if (a.king || VAL[a.type] >= mineVal) forks++;
+  const isFork = forks >= 2;
+  if (isFork) pts += 8;
+
+  /* مبادلة رابحة: أسرت قطعة أغلى من قطعتك وهي معرضة للأخذ */
+  let winTrade = false, bigCap = false;
+  if (m.captured && !isMate) {
+    const victim = VAL[Math.abs(m.captured)];
+    const mine = m.promo ? VAL[5] : mineVal;
+    const hanging = isSquareAttacked(st.board, m.to, -mover);
+    winTrade = victim > mine && hanging;
+    if (winTrade) pts += 10;
+    bigCap = victim >= 500 && !hanging;
+  }
+
+  /* اختيار الحدث البارز الواحد بالأولوية */
+  let ev = null;
+  if (isMate) ev = 'mate';
+  else if (m.promo) ev = 'promo';
+  else if (winTrade) ev = 'trade';
+  else if (isFork) ev = 'fork';
+  else if (m.flag === 'ep') ev = 'ep';
+  else if (m.flag === 'castleK' || m.flag === 'castleQ') ev = 'castle';
+  else if (inCheck) ev = 'check';
+  else if (bigCap) ev = 'bigcap';
+
+  return { pts: pts, ev: ev };
+}
+
+/* ---------- متحكم اللعبة (طابق المنطق فوق المحرك) ---------- */
+function createGameControl() {
+  const g = {
+    state: null,      /* حالة المحرك */
+    history: [],      /* لقطات ما قبل كل نقلة (للتراجع) */
+    records: [],      /* سجل النقلات للعرض */
+    counts: {},       /* تكرار كل وضع (للتعادل بالتكرار) */
+    posKey: '',
+    legal: [],
+    over: false,
+    result: null
+  };
+
+  function reset(fen) {
+    g.state = fen ? fenToState(fen) : initialState();
+    g.history = [];
+    g.records = [];
+    g.counts = {};
+    g.over = false;
+    g.result = null;
+    g.posKey = positionKey(g.state);
+    g.counts[g.posKey] = 1;
+    g.legal = generateLegalMoves(g.state);
+  }
+
+  /* ينفذ نقلة قانونية ويعيد {san, over, result, inCheck} */
+  function applyMove(m) {
+    const st = g.state;
+    const san = moveToSan(st, m, g.legal);
+    g.history.push({
+      board: st.board.slice(),
+      turn: st.turn,
+      castling: { wk: st.castling.wk, wq: st.castling.wq, bk: st.castling.bk, bq: st.castling.bq },
+      enPassant: st.enPassant,
+      halfmove: st.halfmove,
+      posKey: g.posKey,
+      recs: g.records.length
+    });
+    const mover = st.turn;
+    makeMove(st, m);
+    g.posKey = positionKey(st);
+    g.counts[g.posKey] = (g.counts[g.posKey] || 0) + 1;
+    g.legal = generateLegalMoves(st);
+    const inCheck = kingAttacked(st, st.turn);
+
+    let sanF = san;
+    if (inCheck) sanF += g.legal.length ? '+' : '#';
+    g.records.push({
+      san: sanF, color: mover, captured: m.captured,
+      from: m.from, to: m.to, flag: m.flag, promo: m.promo
+    });
+
+    g.over = false;
+    g.result = null;
+    if (!g.legal.length) {
+      g.over = true;
+      g.result = inCheck ? (st.turn > 0 ? 'black' : 'white') : 'stalemate';
+    } else if (insufficientMaterial(st.board)) {
+      g.over = true;
+      g.result = 'insufficient';
+    } else if (g.counts[g.posKey] >= 3) {
+      g.over = true;
+      g.result = 'threefold';
+    } else if (st.halfmove >= 100) {
+      g.over = true;
+      g.result = 'fifty';
+    }
+    return { san: sanF, over: g.over, result: g.result, inCheck: inCheck };
+  }
+
+  /* يلغي نقلة واحدة ويعيد الحالة إلى ما قبلها */
+  function undoOne() {
+    const s = g.history.pop();
+    if (!s) return false;
+    if (g.counts[g.posKey]) g.counts[g.posKey]--;
+    g.state.board = s.board;
+    g.state.turn = s.turn;
+    g.state.castling = s.castling;
+    g.state.enPassant = s.enPassant;
+    g.state.halfmove = s.halfmove;
+    g.posKey = s.posKey;
+    g.records.length = s.recs;
+    g.over = false;
+    g.result = null;
+    g.legal = generateLegalMoves(g.state);
+    return true;
+  }
+
+  reset();
+  return { g: g, reset: reset, applyMove: applyMove, undoOne: undoOne };
+}
+
+/* ---------- أداة اختبار شاملة (perft) ---------- */
+function perft(st, depth) {
+  if (depth === 0) return 1;
+  let nodes = 0;
+  const moves = generateMoves(st, st.turn);
+  for (const m of moves) {
+    const u = makeMove(st, m);
+    if (!kingAttacked(st, -st.turn)) nodes += perft(st, depth - 1);
+    unmakeMove(st, m, u);
+  }
+  return nodes;
+}
+
+</script>
+<script>
+/* ============================================================
+   واجهة اللعبة — عرض سلس بلا أي اهتزاز:
+   • قطع دائمة تتحرك بـ transform فقط (تسريع عتادي، صفر reflow)
+   • لا إعادة بناء للوحة عند كل نقلة — فقط تحديث تظليلات
+   • نظام نقاط + رسائل تشجيعية خفيفة فوق اللوحة
+   ============================================================ */
+(function () {
+  'use strict';
+
+  /* ---------- مراجع العناصر ---------- */
+  const $ = s => document.querySelector(s);
+  const setupEl = $('#setup');
+  const gameScreenEl = $('#game-screen');
+  const boardEl = $('#board');
+  const piecesEl = $('#pieces');
+  const toastLayer = $('#toast-layer');
+  const barTop = $('#bar-top');
+  const barBottom = $('#bar-bottom');
+  const statusMain = $('#status-main');
+  const statusSub = $('#status-sub');
+  const movesEl = $('#moves');
+  const promoModal = $('#promo-modal');
+  const promoBtns = $('#promo-btns');
+  const promoCancel = $('#promo-cancel');
+  const overModal = $('#over-modal');
+  const overIcon = $('#over-icon');
+  const overTitle = $('#over-title');
+  const overSub = $('#over-sub');
+  const overScores = $('#over-scores');
+  const overNew = $('#over-new');
+  const overClose = $('#over-close');
+  const btnUndo = $('#btn-undo');
+  const btnFlip = $('#btn-flip');
+  const btnSound = $('#btn-sound');
+  const btnTheme = $('#btn-theme');
+  const btnNew = $('#btn-new');
+  const themeSetup = $('#theme-setup');
+  const startBtn = $('#start-btn');
+  const diffGroup = $('#diff-group');
+  const colorGroup = $('#color-group');
+
+  /* ---------- ثوابت العرض ---------- */
+  const GLYPH = { 1: '♟', 2: '♞', 3: '♝', 4: '♜', 5: '♛', 6: '♚' };
+  const AR_NAME = { 1: 'بيدق', 2: 'حصان', 3: 'فيل', 4: 'رخ (قلعة)', 5: 'وزير (ملكة)', 6: 'ملك' };
+  const DIFF_AR = { easy: 'سهل', medium: 'متوسط', hard: 'صعب' };
+  const MATV = [0, 1, 3, 3, 5, 9, 0];
+
+  /* نصوص الرسائل التشجيعية حسب الحدث */
+  const TOAST_TEXT = {
+    mate: ['كش مات!'],
+    promo: ['ترقية ممتازة!', 'أحسنت — ترقية!'],
+    trade: ['مبادلة رابحة! Nice', 'صفقة رابحة!'],
+    fork: ['شوكة رائعة!', 'Nice شوكة!'],
+    ep: ['أخذ بالتجاوز!', 'حركة ذكية!'],
+    castle: ['تبييت ذكي', 'تبييت آمن!'],
+    check: ['كش!', 'كش — جيد!'],
+    bigcap: ['ضربة قوية!', 'Nice!']
+  };
+  const TOAST_CLS = {
+    mate: 'mate', promo: 'great', fork: 'great',
+    trade: 'good', ep: 'good', castle: 'good', bigcap: 'good', check: 'info'
+  };
+
+  /* ---------- حالة الواجهة ---------- */
+  const gc = createGameControl();
+  const G = {
+    mode: 'friend',        /* friend | ai */
+    difficulty: 'medium',  /* easy | medium | hard */
+    colorChoice: 'w',      /* w | b | rand */
+    playerColor: 1,
+    flipped: false,
+    selected: -1,
+    thinking: false,
+    id: 0
+  };
+  let pendingPromo = null;
+  const squares = [];
+  const pieceEls = new Map();  /* رقم المربع -> عنصر القطعة الدائم */
+  const lastScores = { '1': 0, '-1': 0 };
+
+  /* ---------- الأصوات (WebAudio بدون ملفات خارجية) ---------- */
+  let audioCtx = null;
+  let soundOn = true;
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) audioCtx = new AC();
+      } catch (e) { audioCtx = null; }
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function tone(freq, dur, delay, type, vol) {
+    if (!soundOn || !audioCtx) return;
+    try {
+      const t = audioCtx.currentTime + (delay || 0);
+      const o = audioCtx.createOscillator();
+      const gn = audioCtx.createGain();
+      o.type = type || 'sine';
+      o.frequency.value = freq;
+      gn.gain.setValueAtTime(vol || 0.1, t);
+      gn.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+      o.connect(gn);
+      gn.connect(audioCtx.destination);
+      o.start(t);
+      o.stop(t + dur + 0.03);
+    } catch (e) { /* تجاهل */ }
+  }
+
+  const SFX = {
+    select: () => tone(700, 0.05, 0, 'sine', 0.05),
+    move: () => tone(420, 0.09, 0, 'triangle', 0.1),
+    capture: () => { tone(300, 0.09, 0, 'square', 0.07); tone(180, 0.12, 0.02, 'square', 0.07); },
+    castle: () => { tone(380, 0.07, 0, 'triangle', 0.09); tone(380, 0.07, 0.09, 'triangle', 0.09); },
+    check: () => { tone(660, 0.09, 0, 'sine', 0.1); tone(880, 0.13, 0.1, 'sine', 0.1); },
+    promote: () => { tone(520, 0.08, 0, 'sine', 0.1); tone(660, 0.08, 0.09, 'sine', 0.1); tone(840, 0.13, 0.18, 'sine', 0.1); },
+    win: () => { tone(523, 0.12, 0, 'sine', 0.11); tone(659, 0.12, 0.13, 'sine', 0.11); tone(784, 0.22, 0.26, 'sine', 0.11); },
+    lose: () => { tone(392, 0.15, 0, 'sine', 0.1); tone(311, 0.26, 0.16, 'sine', 0.1); },
+    draw: () => { tone(440, 0.14, 0, 'sine', 0.1); tone(440, 0.2, 0.18, 'sine', 0.1); }
+  };
+
+  /* ---------- السمة (ليلي/نهاري) ---------- */
+  function currentTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  }
+  function syncThemeButtons() {
+    const dark = currentTheme() === 'dark';
+    btnTheme.textContent = dark ? '☀️' : '🌙';
+    themeSetup.textContent = dark ? '☀️' : '🌙';
+    btnTheme.title = themeSetup.title = dark ? 'التبديل إلى الوضع النهاري' : 'التبديل إلى الوضع الليلي';
+  }
+  function toggleTheme() {
+    const t = currentTheme() === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem('chess-theme', t); } catch (e) { }
+    syncThemeButtons();
+    SFX.select();
+  }
+
+  /* ---------- التفضيلات المحفوظة ---------- */
+  function savePrefs() {
+    try {
+      localStorage.setItem('chess-prefs', JSON.stringify({
+        mode: G.mode, difficulty: G.difficulty, color: G.colorChoice
+      }));
+    } catch (e) { }
+  }
+  function loadPrefs() {
+    try {
+      const p = JSON.parse(localStorage.getItem('chess-prefs') || 'null');
+      if (p) {
+        if (p.mode === 'friend' || p.mode === 'ai') G.mode = p.mode;
+        if (p.difficulty === 'easy' || p.difficulty === 'medium' || p.difficulty === 'hard') G.difficulty = p.difficulty;
+        if (p.color === 'w' || p.color === 'b' || p.color === 'rand') G.colorChoice = p.color;
+      }
+      if (localStorage.getItem('chess-sound') === '0') soundOn = false;
+    } catch (e) { }
+    document.querySelectorAll('#mode-row .opt').forEach(b => {
+      b.classList.toggle('selected', b.dataset.mode === G.mode);
+    });
+    diffGroup.classList.toggle('hidden', G.mode !== 'ai');
+    colorGroup.classList.toggle('hidden', G.mode !== 'ai');
+    document.querySelectorAll('#diff-row .opt').forEach(b => {
+      b.classList.toggle('selected', b.dataset.diff === G.difficulty);
+    });
+    document.querySelectorAll('#color-row .opt').forEach(b => {
+      b.classList.toggle('selected', b.dataset.color === G.colorChoice);
+    });
+  }
+
+  /* ---------- بناء اللوحة ---------- */
+  function buildBoard() {
+    boardEl.innerHTML = '';
+    squares.length = 0;
+    for (let d = 0; d < 64; d++) {
+      const el = document.createElement('div');
+      const r = d >> 3, c = d & 7;
+      el.className = 'sq ' + ((r + c) % 2 === 0 ? 'l' : 'd');
+      el.dataset.d = d;
+      boardEl.appendChild(el);
+      squares.push(el);
+    }
+    renderCoords();
+  }
+
+  /* الإحداثيات الحرفية تُبنى مرة عند البناء وعند قلب اللوحة فقط */
+  function renderCoords() {
+    for (const el of squares) {
+      const old = el.querySelectorAll('.coord');
+      for (const n of old) n.remove();
+    }
+    for (let d = 0; d < 64; d++) {
+      const sq = G.flipped ? 63 - d : d;
+      const el = squares[d];
+      if ((d >> 3) === 7) {
+        const s = document.createElement('span');
+        s.className = 'coord cf';
+        s.textContent = FILES[sq & 7];
+        el.appendChild(s);
+      }
+      if ((d & 7) === 0) {
+        const s = document.createElement('span');
+        s.className = 'coord cr';
+        s.textContent = String(8 - (sq >> 3));
+        el.appendChild(s);
+      }
+    }
+  }
+
+  boardEl.addEventListener('click', e => {
+    const el = e.target.closest('.sq');
+    if (!el) return;
+    const d = +el.dataset.d;
+    onSquareClick(G.flipped ? 63 - d : d);
+  });
+
+  /* ---------- عناصر القطع الدائمة ---------- */
+  function dispOf(sq) { return G.flipped ? 63 - sq : sq; }
+
+  function placePiece(el, sq) {
+    const d = dispOf(sq);
+    el.style.transform = 'translate(' + (d & 7) * 100 + '%, ' + (d >> 3) * 100 + '%)';
+  }
+
+  function mkPiece(p, sq) {
+    const el = document.createElement('div');
+    el.className = 'pc';
+    const g = document.createElement('span');
+    g.className = 'piece ' + (p > 0 ? 'w' : 'b');
+    g.textContent = GLYPH[Math.abs(p)];
+    el.appendChild(g);
+    placePiece(el, sq);
+    piecesEl.appendChild(el);
+    return el;
+  }
+
+  function rebuildPieces() {
+    piecesEl.innerHTML = '';
+    pieceEls.clear();
+    const b = gc.g.state.board;
+    for (let sq = 0; sq < 64; sq++) {
+      if (b[sq]) pieceEls.set(sq, mkPiece(b[sq], sq));
+    }
+  }
+
+  /* تحريك القطع: تحويل transform فقط — أنعم حركة ممكنة */
+  function animateMove(m) {
+    const el = pieceEls.get(m.from);
+    if (!el) { rebuildPieces(); return; }
+    pieceEls.delete(m.from);
+
+    const mover = m.piece > 0 ? 1 : -1;
+    let capSq = -1;
+    if (m.flag === 'ep') capSq = m.to + (mover > 0 ? 8 : -8);
+    else if (m.captured) capSq = m.to;
+    if (capSq >= 0) {
+      const capEl = pieceEls.get(capSq);
+      if (capEl) {
+        pieceEls.delete(capSq);
+        capEl.classList.add('dying');
+        setTimeout(() => capEl.remove(), 380);
+      }
+    }
+
+    pieceEls.set(m.to, el);
+    placePiece(el, m.to);
+
+    if (m.flag === 'castleK' || m.flag === 'castleQ') {
+      const k = m.flag === 'castleK';
+      let rf, rt;
+      if (mover > 0) { rf = k ? 63 : 56; rt = k ? 61 : 59; }
+      else { rf = k ? 7 : 0; rt = k ? 5 : 3; }
+      const rk = pieceEls.get(rf);
+      if (rk) {
+        pieceEls.delete(rf);
+        pieceEls.set(rt, rk);
+        placePiece(rk, rt);
+      }
+    }
+
+    if (m.promo) {
+      setTimeout(() => {
+        if (pieceEls.get(m.to) !== el) return;
+        const g = el.firstChild;
+        if (g) {
+          g.textContent = GLYPH[m.promo];
+          g.classList.add('pop');
+          setTimeout(() => g.classList.remove('pop'), 440);
+        }
+      }, 200);
+    }
+  }
+
+  /* ---------- العرض ---------- */
+  /* تحديث التظليلات فقط — بدون أي إعادة بناء للوحة أو القطع */
+  function renderBoard() {
+    const st = gc.g.state;
+    const last = gc.g.records[gc.g.records.length - 1];
+    const checkSq = findKingSq(st.board, st.turn);
+    const inCheck = checkSq >= 0 && isSquareAttacked(st.board, checkSq, -st.turn);
+    const targets = new Map();
+    if (G.selected >= 0) {
+      for (const m of gc.g.legal) {
+        if (m.from === G.selected) {
+          targets.set(m.to, (m.captured || m.flag === 'ep') ? 'ring' : 'dot');
+        }
+      }
+    }
+    for (let d = 0; d < 64; d++) {
+      const sq = G.flipped ? 63 - d : d;
+      const el = squares[d];
+      el.classList.toggle('sel', sq === G.selected);
+      el.classList.toggle('last', !!last && (sq === last.from || sq === last.to));
+      el.classList.toggle('check', inCheck && sq === checkSq);
+      el.classList.toggle('dot', targets.get(sq) === 'dot');
+      el.classList.toggle('ring', targets.get(sq) === 'ring');
+    }
+  }
+
+  function scoreOf(color) {
+    let s = 0;
+    for (const rec of gc.g.records) if (rec.color === color) s += rec.pts || 0;
+    return s;
+  }
+
+  function fillPlayerBar(el, color, caps, adv) {
+    const g = gc.g;
+    const isAI = G.mode === 'ai' && color !== G.playerColor;
+    let name;
+    if (G.mode === 'ai') name = isAI ? '🤖 الكمبيوتر (' + DIFF_AR[G.difficulty] + ')' : 'أنت';
+    else name = color === 1 ? 'اللاعب الأبيض' : 'اللاعب الأسود';
+    const sorted = caps.slice().sort((a, b) => MATV[Math.abs(b)] - MATV[Math.abs(a)]);
+    let glyphs = '';
+    for (const v of sorted) {
+      glyphs += '<span class="cap ' + (v > 0 ? 'w' : 'b') + '">' + GLYPH[Math.abs(v)] + '</span>';
+    }
+    const winner = g.over && ((g.result === 'white' && color === 1) || (g.result === 'black' && color === -1));
+    el.innerHTML =
+      '<span class="pb-dot ' + (color === 1 ? 'w' : 'b') + '"></span>' +
+      '<span class="pb-name">' + name + ' <span class="pb-color">(' + (color === 1 ? 'أبيض' : 'أسود') + ')</span></span>' +
+      '<span class="pb-caps">' + glyphs + '</span>' +
+      (adv > 0 ? '<span class="pb-adv">+' + adv + '</span>' : '') +
+      '<span class="pb-score" data-color="' + color + '"><span class="sc-label">نقاط</span>' +
+      '<span class="sc-num">' + scoreOf(color) + '</span></span>';
+    el.classList.toggle('active', !g.over && g.state.turn === color);
+    el.classList.toggle('winner', winner);
+  }
+
+  function renderBars() {
+    const bottomColor = G.flipped ? -1 : 1;
+    const topColor = -bottomColor;
+    const capsBy = { 1: [], '-1': [] };
+    for (const rec of gc.g.records) {
+      if (rec.captured) capsBy[rec.color].push(rec.captured);
+    }
+    const val = arr => arr.reduce((s, v) => s + MATV[Math.abs(v)], 0);
+    const matW = val(capsBy[1]);
+    const matB = val(capsBy['-1']);
+    fillPlayerBar(barBottom, bottomColor, capsBy[bottomColor], bottomColor === 1 ? matW - matB : matB - matW);
+    fillPlayerBar(barTop, topColor, capsBy[topColor], topColor === 1 ? matW - matB : matB - matW);
+
+    /* نبضة خفيفة على الرقم عند الزيادة */
+    for (const col of [1, -1]) {
+      const chip = document.querySelector('.pb-score[data-color="' + col + '"]');
+      if (!chip) continue;
+      const numEl = chip.querySelector('.sc-num');
+      const v = scoreOf(col);
+      if (v > lastScores[String(col)]) {
+        numEl.classList.remove('bump');
+        void numEl.offsetWidth;
+        numEl.classList.add('bump');
+        setTimeout(() => numEl.classList.remove('bump'), 480);
+      }
+      lastScores[String(col)] = v;
+    }
+  }
+
+  /* +ن تطفو بجانب شارة النقاط */
+  function floatScore(color, n) {
+    if (!n) return;
+    const chip = document.querySelector('.pb-score[data-color="' + color + '"]');
+    if (!chip) return;
+    const f = document.createElement('span');
+    f.className = 'sc-float';
+    f.textContent = '+' + n;
+    chip.appendChild(f);
+    setTimeout(() => f.remove(), 1080);
+  }
+
+  function renderMoves() {
+    const recs = gc.g.records;
+    if (!recs.length) {
+      movesEl.innerHTML = '<div class="mv-empty">لم تُلعب أي نقلة بعد</div>';
+      return;
+    }
+    let html = '';
+    for (let i = 0; i < recs.length; i += 2) {
+      const isCurrent = i + 2 >= recs.length;
+      html += '<div class="mv-row' + (isCurrent ? ' current' : '') + '">' +
+        '<span class="mv-n">' + (i / 2 + 1) + '.</span>' +
+        '<span class="mv-s">' + recs[i].san + '</span>' +
+        '<span class="mv-s">' + (recs[i + 1] ? recs[i + 1].san : '') + '</span>' +
+        '</div>';
+    }
+    movesEl.innerHTML = html;
+    movesEl.scrollTop = movesEl.scrollHeight;
+  }
+
+  function overStatusText() {
+    switch (gc.g.result) {
+      case 'white': return '♔ كش مات — فاز الأبيض';
+      case 'black': return '♚ كش مات — فاز الأسود';
+      case 'stalemate': return '🤝 تعادل — طريق مسدود';
+      case 'insufficient': return '🤝 تعادل — نقص القطع';
+      case 'threefold': return '🤝 تعادل — تكرار ثلاثي';
+      case 'fifty': return '🤝 تعادل — قاعدة الخمسين نقلة';
+    }
+    return 'انتهت اللعبة';
+  }
+
+  function updateStatus() {
+    const g = gc.g;
+    let main;
+    if (g.over) {
+      main = overStatusText();
+    } else if (G.thinking) {
+      main = '<span class="spinner"></span> الكمبيوتر يفكر<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
+    } else {
+      const nm = g.state.turn > 0 ? 'الأبيض' : 'الأسود';
+      const chk = kingAttacked(g.state, g.state.turn)
+        ? ' <span class="check-tag">كش!</span>' : '';
+      main = '<span class="turn-dot ' + (g.state.turn > 0 ? 'w' : 'b') + '"></span> دور ' + nm + chk;
+    }
+    statusMain.innerHTML = main;
+
+    let sub;
+    if (g.over) {
+      sub = 'اضغط "لعبة جديدة" للبدء من جديد، أو "تراجع" لتعديل آخر نقلة';
+    } else if (G.mode === 'ai') {
+      sub = 'ضد الكمبيوتر — المستوى: ' + DIFF_AR[G.difficulty] +
+            ' — تلعب بالقطع ' + (G.playerColor === 1 ? 'البيضاء' : 'السوداء');
+    } else {
+      sub = 'لاعبان على نفس الجهاز — يتناوبان على اللوحة';
+    }
+    if (!gc.g.records.length && !g.over && !G.thinking) {
+      sub += ' · انقر قطعة ثم انقر المربع الهدف';
+    }
+    statusSub.textContent = sub;
+  }
+
+  function updateButtons() {
+    btnUndo.disabled = G.thinking || !gc.g.history.length;
+  }
+
+  function renderAll() {
+    renderBoard();
+    renderBars();
+    renderMoves();
+    updateStatus();
+    updateButtons();
+  }
+
+  /* ---------- الرسائل التشجيعية ---------- */
+  let toastTimer = 0;
+  let toastRemoveTimer = 0;
+
+  function showToast(txt, cls) {
+    toastLayer.innerHTML = '';
+    clearTimeout(toastTimer);
+    clearTimeout(toastRemoveTimer);
+    const d = document.createElement('div');
+    d.className = 'toast ' + (cls || 'info');
+    d.textContent = txt;
+    toastLayer.appendChild(d);
+    toastTimer = setTimeout(() => {
+      d.classList.add('out');
+      toastRemoveTimer = setTimeout(() => d.remove(), 380);
+    }, 1050);
+  }
+
+  function toastFor(ev) {
+    if (!ev) return;
+    const arr = TOAST_TEXT[ev];
+    if (!arr) return;
+    showToast(arr[(Math.random() * arr.length) | 0], TOAST_CLS[ev]);
+  }
+
+  /* ---------- تدفق اللعب ---------- */
+  function playEndSound() {
+    const r = gc.g.result;
+    if (r === 'white' || r === 'black') {
+      if (G.mode === 'ai') {
+        const playerWon = (r === 'white' && G.playerColor === 1) || (r === 'black' && G.playerColor === -1);
+        if (playerWon) SFX.win(); else SFX.lose();
+      } else SFX.win();
+    } else SFX.draw();
+  }
+
+  function commitMove(m) {
+    const res = gc.applyMove(m);
+    const rec = gc.g.records[gc.g.records.length - 1];
+    const sc = scoreMoveEvent(gc.g.state, m, res.result, res.inCheck);
+    rec.pts = sc.pts;
+
+    animateMove(m);
+
+    if (res.over) playEndSound();
+    else if (res.inCheck) SFX.check();
+    else if (m.promo) SFX.promote();
+    else if (m.flag === 'castleK' || m.flag === 'castleQ') SFX.castle();
+    else if (m.captured) SFX.capture();
+    else SFX.move();
+
+    renderAll();
+
+    if (sc.pts) floatScore(m.piece > 0 ? 1 : -1, sc.pts);
+    toastFor(sc.ev);
+
+    if (res.over) {
+      const id = G.id;
+      setTimeout(() => { if (id === G.id && gc.g.over) showOverModal(); }, 1000);
+    } else {
+      maybeAiMove();
+    }
+  }
+
+  function maybeAiMove() {
+    if (G.mode !== 'ai' || gc.g.over || G.thinking) return;
+    if (gc.g.state.turn !== -G.playerColor) return;
+    G.thinking = true;
+    updateStatus();
+    updateButtons();
+    renderBars();
+    const id = G.id;
+    setTimeout(() => {
+      if (id !== G.id) return;
+      let m = null;
+      try { m = chooseAiMove(gc.g.state, G.difficulty); }
+      catch (err) { console.error(err); }
+      G.thinking = false;
+      if (id !== G.id) return;
+      if (m) commitMove(m);
+      else { updateStatus(); updateButtons(); }
+    }, 280 + Math.random() * 420);
+  }
+
+  function onSquareClick(sq) {
+    if (G.thinking || gc.g.over) return;
+    if (G.mode === 'ai' && gc.g.state.turn !== G.playerColor) return;
+    const st = gc.g.state;
+    if (G.selected >= 0) {
+      const cands = gc.g.legal.filter(m => m.from === G.selected && m.to === sq);
+      if (cands.length) {
+        if (cands[0].promo) { showPromo(cands); return; }
+        G.selected = -1;
+        commitMove(cands[0]);
+        return;
+      }
+    }
+    const p = st.board[sq];
+    if (p && (p > 0) === (st.turn > 0)) {
+      if (G.selected === sq) G.selected = -1;
+      else { G.selected = sq; SFX.select(); }
+    } else {
+      G.selected = -1;
+    }
+    renderBoard();
+  }
+
+  /* ---------- الترقية ---------- */
+  function showPromo(cands) {
+    pendingPromo = cands;
+    const cls = gc.g.state.turn > 0 ? 'w' : 'b';
+    promoBtns.innerHTML = '';
+    for (const t of [5, 4, 3, 2]) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'promo-btn';
+      b.title = AR_NAME[t];
+      b.innerHTML = '<span class="piece ' + cls + '">' + GLYPH[t] + '</span>';
+      b.addEventListener('click', () => {
+        const mv = pendingPromo ? pendingPromo.find(x => x.promo === t) : null;
+        pendingPromo = null;
+        promoModal.classList.add('hidden');
+        G.selected = -1;
+        if (mv) commitMove(mv);
+        else renderBoard();
+      });
+      promoBtns.appendChild(b);
+    }
+    promoModal.classList.remove('hidden');
+  }
+  function cancelPromo() {
+    pendingPromo = null;
+    promoModal.classList.add('hidden');
+    G.selected = -1;
+    renderBoard();
+  }
+  promoCancel.addEventListener('click', cancelPromo);
+  promoModal.addEventListener('click', e => { if (e.target === promoModal) cancelPromo(); });
+
+  /* ---------- نهاية اللعبة ---------- */
+  function showOverModal() {
+    const r = gc.g.result;
+    let icon = '🤝', title = 'تعادل', sub = '';
+    if (r === 'white' || r === 'black') {
+      const wWhite = r === 'white';
+      icon = wWhite ? '♔' : '♚';
+      if (G.mode === 'ai') {
+        const pWon = (wWhite && G.playerColor === 1) || (!wWhite && G.playerColor === -1);
+        title = pWon ? 'أحسنت، لقد فزت! 🎉' : 'فاز الكمبيوتر 🤖';
+        sub = pWon ? 'كش مات — فوز رائع!' : 'كش مات — لا بأس، جرّب مرة أخرى!';
+      } else {
+        title = wWhite ? 'فاز اللاعب الأبيض!' : 'فاز اللاعب الأسود!';
+        sub = 'انتهت اللعبة بالكش مات';
+      }
+    } else {
+      sub = {
+        stalemate: 'طريق مسدود — لا توجد نقلة قانونية للخصم',
+        insufficient: 'القطع المتبقية لا تكفي للوصول إلى كش مات',
+        threefold: 'تكرر الوضع نفسه ثلاث مرات',
+        fifty: 'خمسون نقلة دون أسر أو تحريك بيدق'
+      }[r] || '';
+    }
+    overIcon.textContent = icon;
+    overTitle.textContent = title;
+    overSub.textContent = sub;
+
+    const sW = scoreOf(1), sB = scoreOf(-1);
+    let nW, nB;
+    if (G.mode === 'ai') {
+      nW = G.playerColor === 1 ? 'أنت' : 'الكمبيوتر';
+      nB = G.playerColor === 1 ? 'الكمبيوتر' : 'أنت';
+    } else {
+      nW = 'اللاعب الأبيض';
+      nB = 'اللاعب الأسود';
+    }
+    overScores.innerHTML =
+      '<div class="osc-mid">النقاط النهائية</div>' +
+      '<div class="osc-row' + (r === 'white' ? ' winner' : '') + '"><span class="osc-name">' + nW + '</span>' +
+      '<span class="osc-val">' + sW + '</span></div>' +
+      '<div class="osc-row' + (r === 'black' ? ' winner' : '') + '"><span class="osc-name">' + nB + '</span>' +
+      '<span class="osc-val">' + sB + '</span></div>';
+
+    overModal.classList.remove('hidden');
+  }
+
+  function goSetup() {
+    G.id++; /* إلغاء أي رد معلق من الكمبيوتر */
+    hideModals();
+    gameScreenEl.classList.add('hidden');
+    setupEl.classList.remove('hidden');
+  }
+  function hideModals() {
+    promoModal.classList.add('hidden');
+    overModal.classList.add('hidden');
+    pendingPromo = null;
+  }
+
+  overNew.addEventListener('click', goSetup);
+  overClose.addEventListener('click', () => overModal.classList.add('hidden'));
+  btnNew.addEventListener('click', () => { SFX.select(); goSetup(); });
+
+  /* ---------- التراجع ---------- */
+  function undoMove() {
+    if (G.thinking || !gc.g.history.length) return;
+    let n = 1;
+    if (G.mode === 'ai' && gc.g.state.turn === G.playerColor && gc.g.history.length >= 2) n = 2;
+    for (let i = 0; i < n; i++) gc.undoOne();
+    G.selected = -1;
+    hideModals();
+    rebuildPieces();
+    renderAll();
+    maybeAiMove();
+  }
+  btnUndo.addEventListener('click', undoMove);
+
+  /* ---------- بقية الأزرار ---------- */
+  btnFlip.addEventListener('click', () => {
+    G.flipped = !G.flipped;
+    renderCoords();
+    for (const [sq, el] of pieceEls) placePiece(el, sq);
+    renderBoard();
+    renderBars();
+    SFX.select();
+  });
+  btnTheme.addEventListener('click', toggleTheme);
+  themeSetup.addEventListener('click', toggleTheme);
+  btnSound.addEventListener('click', () => {
+    soundOn = !soundOn;
+    try { localStorage.setItem('chess-sound', soundOn ? '1' : '0'); } catch (e) { }
+    btnSound.textContent = soundOn ? '🔊' : '🔇';
+    btnSound.title = soundOn ? 'كتم الصوت' : 'تشغيل الصوت';
+    if (soundOn) SFX.select();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      if (!promoModal.classList.contains('hidden')) cancelPromo();
+      else if (!overModal.classList.contains('hidden')) overModal.classList.add('hidden');
+      else if (G.selected >= 0) { G.selected = -1; renderBoard(); }
+    }
+  });
+
+  /* ---------- شاشة الإعداد ---------- */
+  function bindGroup(rowSel, cb) {
+    const row = document.querySelector(rowSel);
+    row.querySelectorAll('.opt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        row.querySelectorAll('.opt').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        cb(btn);
+        SFX.select();
+      });
+    });
+  }
+  bindGroup('#mode-row', btn => {
+    G.mode = btn.dataset.mode;
+    diffGroup.classList.toggle('hidden', G.mode !== 'ai');
+    colorGroup.classList.toggle('hidden', G.mode !== 'ai');
+  });
+  bindGroup('#diff-row', btn => { G.difficulty = btn.dataset.diff; });
+  bindGroup('#color-row', btn => { G.colorChoice = btn.dataset.color; });
+
+  function startGame() {
+    gc.reset();
+    G.selected = -1;
+    G.thinking = false;
+    G.id++;
+    lastScores['1'] = 0;
+    lastScores['-1'] = 0;
+    G.flipped = (G.mode === 'ai' && G.playerColor === -1);
+    hideModals();
+    setupEl.classList.add('hidden');
+    gameScreenEl.classList.remove('hidden');
+    renderCoords();
+    rebuildPieces();
+    renderAll();
+    savePrefs();
+    maybeAiMove();
+  }
+
+  startBtn.addEventListener('click', () => {
+    ensureAudio();
+    if (G.mode === 'ai') {
+      G.playerColor = G.colorChoice === 'w' ? 1 : G.colorChoice === 'b' ? -1 : (Math.random() < 0.5 ? 1 : -1);
+    } else {
+      G.playerColor = 1;
+    }
+    startGame();
+  });
+
+  /* ---------- التهيئة ---------- */
+  document.addEventListener('pointerdown', ensureAudio);
+  buildBoard();
+  loadPrefs();
+  syncThemeButtons();
+  btnSound.textContent = soundOn ? '🔊' : '🔇';
+  btnSound.title = soundOn ? 'كتم الصوت' : 'تشغيل الصوت';
+  rebuildPieces();
+  renderAll();
+
+  /* مقبض للفحص الآلي */
+  window.__CHESS__ = {
+    gc: gc, G: G,
+    click: onSquareClick,
+    commit: commitMove,
+    render: renderAll,
+    rebuild: rebuildPieces,
+    pieceAt: sq => pieceEls.get(sq)
+  };
+})();
+
+</script>
+</body>
+</html>

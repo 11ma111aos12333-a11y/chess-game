@@ -1,0 +1,60 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build chess-game APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build APKs (debug + release)
+        working-directory: android
+        run: gradle --no-daemon --stacktrace assembleDebug assembleRelease
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chess-android-apk
+          path: |
+            android/app/build/outputs/apk/debug/chess-game-debug.apk
+            android/app/build/outputs/apk/release/chess-game-release.apk
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          APK="android/app/build/outputs/apk/release/chess-game-release.apk"
+          TAG="v1.0.0"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" "$APK" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "لعبة الشطرنج v1.0.0" \
+              --notes "تطبيق أندرويد كامل للعبة الشطرنج. حمّل ملف chess-game-release.apk وثبّته على هاتفك (فعّل خيار التثبيت من مصادر غير معروفة). يعمل دون إنترنت ودون أي أذونات."
+          fi
