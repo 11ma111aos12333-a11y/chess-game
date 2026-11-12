@@ -3,15 +3,14 @@ package app.chess.game;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.os.Bundle;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.Toast;
 
 public class MainActivity extends Activity {
 
     private WebView web;
-    private long lastBack = 0L;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -28,18 +27,31 @@ public class MainActivity extends Activity {
         s.setTextZoom(100);
         web.setBackgroundColor(0xFF161D26);
         web.setWebViewClient(new WebViewClient());
+        web.addJavascriptInterface(new Bridge(), "ChessApp");
         web.loadUrl("file:///android_asset/chess.html");
         setContentView(web);
     }
 
+    /* جسر الخروج: تستدعيه واجهة اللعبة بعد تأكيد المستخدم */
+    private class Bridge {
+        @JavascriptInterface
+        public void exitApp() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() { finish(); }
+            });
+        }
+    }
+
+    /* زر الرجوع الفعلي تديره واجهة اللعبة بالكامل:
+       إغلاق النوافذ ← العودة للقائمة ← خروج بالضغط مرتين */
     @Override
     public void onBackPressed() {
-        long now = System.currentTimeMillis();
-        if (now - lastBack < 2500L) {
-            super.onBackPressed();
+        if (web != null) {
+            web.evaluateJavascript(
+                "window.__NAV__?window.__NAV__.back():window.ChessApp.exitApp()", null);
         } else {
-            lastBack = now;
-            Toast.makeText(this, R.string.exit_hint, Toast.LENGTH_SHORT).show();
+            super.onBackPressed();
         }
     }
 }
